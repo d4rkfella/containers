@@ -63,14 +63,17 @@ jobs:
               echo "Changed/added apko.yaml files found:"
               echo "$changed_apko_files"
               # Convert to array, get dirname for each, then unique sort
-              readarray -t files_array < <(echo "$changed_apko_files")
+              mapfile -t files_array < <(echo "$changed_apko_files")
               for file_path in "${files_array[@]}"; do
-                apps_to_check_list+=("$(dirname "$file_path" | sed 's|^\./||')")
+                dir_name=$(dirname "$file_path" | sed 's|^\./||')
+                if [[ -n "$dir_name" ]]; then
+                  apps_to_check_list+=("$dir_name")
+                fi
               done
               
               if [[ ${#apps_to_check_list[@]} -gt 0 ]]; then
-                IFS=$'\\n' sorted_unique_apps=($(sort -u <<<"${apps_to_check_list[*]}"))
-                unset IFS
+                # Sort and remove duplicates while preserving array structure
+                mapfile -t sorted_unique_apps < <(printf '%s\n' "${apps_to_check_list[@]}" | sort -u)
                 apps_to_check_list=("${sorted_unique_apps[@]}")
               fi
             else
@@ -105,7 +108,7 @@ jobs:
 
           echo "Final list of app directories to check (${#apps_to_check_list[@]} apps):"
           if [[ ${#apps_to_check_list[@]} -gt 0 ]]; then
-            printf "%s\\n" "${apps_to_check_list[@]}"
+            printf '%s\n' "${apps_to_check_list[@]}"
           else
             echo "(empty list)"
           fi
@@ -134,7 +137,6 @@ jobs:
 
               if [[ -z "$PACKAGE_INFO" || "$PACKAGE_INFO" == "null" ]]; then
                 echo "Warning: No S3 package info found for $app (or AWS CLI error). Skipping."
-                echo "::endgroup::"
                 continue
               fi
 
@@ -143,7 +145,6 @@ jobs:
 
               if [[ -z "$S3_KEY" ]]; then
                   echo "Warning: Could not extract S3 Key for $app. PACKAGE_INFO: $PACKAGE_INFO. Skipping."
-                  echo "::endgroup::"
                   continue
               fi
               
@@ -153,12 +154,10 @@ jobs:
 
               if [[ -z "$VERSION" ]]; then
                 echo "Warning: Could not extract version from S3 Key '$S3_KEY' for app '$app'. Skipping."
-                echo "::endgroup::"
                 continue
               fi
               if [[ -z "$S3_TIMESTAMP" ]]; then
                 echo "Warning: Could not extract S3 LastModified timestamp for $app. PACKAGE_INFO: $PACKAGE_INFO. Skipping."
-                echo "::endgroup::"
                 continue
               fi
 
@@ -208,7 +207,6 @@ jobs:
                 echo "GHCR image for $app:$VERSION found. Created at: $IMAGE_TIMESTAMP (Epoch: $GHCR_EPOCH)"
                 if [[ "$GHCR_EPOCH" -ge "$S3_EPOCH" ]]; then
                   echo "Image $app:$VERSION is up-to-date (GHCR Epoch $GHCR_EPOCH >= S3 Epoch $S3_EPOCH). Skipping build."
-                  echo "::endgroup::"
                   continue
                 else
                   echo "Image $app:$VERSION is outdated (GHCR Epoch $GHCR_EPOCH < S3 Epoch $S3_EPOCH)."
