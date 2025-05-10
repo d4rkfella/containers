@@ -31,9 +31,64 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate matrix with apps to build
+      - name: Initialize Variables
+        id: init
+        run: |
+          echo "::group::Initialize Variables"
+          echo "Event name: ${{ github.event_name }}"
+          echo "App name input (for workflow_dispatch): '${{ github.event.inputs.app_name }}'"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Before SHA (for push): ${{ github.event.before }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "::endgroup::"
+
+      - name: Handle Push Event
+        id: push_event
+        if: github.event_name == 'push'
+        run: |
+          echo "::group::Processing Push Event"
+          changed_apko_files=$(git diff --name-only --diff-filter=AM ${{ github.event.before }} ${{ github.sha }} -- '**/apko.yaml' || true)
+
+          if [[ -n "$changed_apko_files" ]]; then
+            echo "Changed/added apko.yaml files found:"
+            echo "$changed_apko_files"
+            mapfile -t files_array < <(echo "$changed_apko_files")
+            for file_path in "${files_array[@]}"; do
+              dir_name=$(dirname "$file_path" | sed 's|^\./||')
+              if [[ -n "$dir_name" ]]; then
+                echo "$dir_name" >> "$GITHUB_OUTPUT"
+              fi
+            done
+          else
+            echo "No apko.yaml files were added or modified in this push."
+          fi
+          echo "::endgroup::"
+
+      - name: Handle Workflow Dispatch
+        id: workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "::group::Processing Workflow Dispatch"
+          if [[ -n "${{ github.event.inputs.app_name }}" ]]; then
+            echo "Workflow dispatch with specific app_name: '${{ github.event.inputs.app_name }}'"
+            echo "${{ github.event.inputs.app_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Workflow dispatch without specific app_name. Will check all apps."
+            find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u >> "$GITHUB_OUTPUT"
+          fi
+          echo "::endgroup::"
+
+      - name: Handle Schedule Event
+        id: schedule
+        if: github.event_name == 'schedule'
+        run: |
+          echo "::group::Processing Schedule Event"
+          echo "Schedule event detected. Will check all apps."
+          find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
+
+      - name: Generate Build Matrix
         id: generate_matrix
-        shell: bash
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -42,77 +97,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
+          echo "::group::Generating Build Matrix"
 
-          echo "::group::Initialize Variables and Determine Event Type"
-          echo "Event name: ${{ github.event_name }}"
-          echo "App name input (for workflow_dispatch): '${{ github.event.inputs.app_name }}'"
-          echo "Commit SHA: ${{ github.sha }}"
-          echo "Before SHA (for push): ${{ github.event.before }}"
-          echo "Ref: ${{ github.ref }}"
-
-          apps_to_check_list=() # Use bash array for apps
-
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "Push event detected. Identifying changed/added apko.yaml files."
-            # fetch-depth: 0 is set in the checkout step, which is required for a full diff.
-            # This command lists apko.yaml files that were Added (A) or Modified (M) in the push.
-            # For a new branch, github.event.before is '00000000...', and this diff shows all files added in the new branch.
-            changed_apko_files=$(git diff --name-only --diff-filter=AM ${{ github.event.before }} ${{ github.sha }} -- '**/apko.yaml' || true)
-
-            if [[ -n "$changed_apko_files" ]]; then
-              echo "Changed/added apko.yaml files found:"
-              echo "$changed_apko_files"
-              # Convert to array, get dirname for each, then unique sort
-              mapfile -t files_array < <(echo "$changed_apko_files")
-              for file_path in "${files_array[@]}"; do
-                dir_name=$(dirname "$file_path" | sed 's|^\./||')
-                if [[ -n "$dir_name" ]]; then
-                  apps_to_check_list+=("$dir_name")
-                fi
-              done
-              
-              if [[ ${#apps_to_check_list[@]} -gt 0 ]]; then
-                # Sort and remove duplicates while preserving array structure
-                mapfile -t sorted_unique_apps < <(printf '%s\n' "${apps_to_check_list[@]}" | sort -u)
-                apps_to_check_list=("${sorted_unique_apps[@]}")
-              fi
-            else
-              echo "No apko.yaml files were added or modified in this push."
-            fi
-
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            if [[ -n "${{ github.event.inputs.app_name }}" ]]; then
-              echo "Workflow dispatch with specific app_name: '${{ github.event.inputs.app_name }}'"
-              apps_to_check_list+=("${{ github.event.inputs.app_name }}")
-            else
-              echo "Workflow dispatch without specific app_name. Will check all apps."
-              # Find all apko.yaml files, get their directories, remove leading ./ and sort uniquely
-              readarray -t all_apps < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
-              if [[ ${#all_apps[@]} -gt 0 ]]; then
-                apps_to_check_list=("${all_apps[@]}")
-              fi
-            fi
-          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "Schedule event detected. Will check all apps."
-            readarray -t all_apps < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
-            if [[ ${#all_apps[@]} -gt 0 ]]; then
-              apps_to_check_list=("${all_apps[@]}")
-            fi
-          else
-            echo "Warning: Unhandled event type '${{ github.event_name }}'. Defaulting to check all apps."
-            readarray -t all_apps < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
-            if [[ ${#all_apps[@]} -gt 0 ]]; then
-              apps_to_check_list=("${all_apps[@]}")
-            fi
-          fi
-
-          echo "Final list of app directories to check (${#apps_to_check_list[@]} apps):"
-          if [[ ${#apps_to_check_list[@]} -gt 0 ]]; then
-            printf '%s\n' "${apps_to_check_list[@]}"
-          else
-            echo "(empty list)"
-          fi
-          echo "::endgroup::"
+          mapfile -t apps_to_check_list < <(cat "$GITHUB_OUTPUT" | sort -u)
 
           matrix_json="[]"
 
@@ -121,101 +108,79 @@ jobs:
           else
             for app in "${apps_to_check_list[@]}"; do
               echo "::group::Processing app: $app"
-              # Validate app directory and apko.yaml
+              
               if [[ ! -d "$app" || ! -f "$app/apko.yaml" ]]; then
                 echo "Warning: App directory '$app' or '$app/apko.yaml' not found. Skipping."
                 echo "::endgroup::"
                 continue
               fi
 
-              echo "Fetching latest S3 package info for $app..."
-              PACKAGE_INFO=$(aws s3api list-objects-v2 \
-                --bucket "$BUCKET" \
-                --endpoint-url "$AWS_ENDPOINT_URL" \
-                --query "sort_by(Contents[?contains(Key, '$app')], &LastModified)[-1]" \
-                --output json || echo "null") # fallback for aws cli error, outputs "null" string
-
-              if [[ -z "$PACKAGE_INFO" || "$PACKAGE_INFO" == "null" ]]; then
-                echo "Warning: No S3 package info found for $app (or AWS CLI error). Skipping."
-                continue
-              fi
-
-              S3_KEY=$(echo "$PACKAGE_INFO" | jq -r '.Key // empty')
-              S3_TIMESTAMP=$(echo "$PACKAGE_INFO" | jq -r '.LastModified // empty')
-
-              if [[ -z "$S3_KEY" ]]; then
-                  echo "Warning: Could not extract S3 Key for $app. PACKAGE_INFO: $PACKAGE_INFO. Skipping."
+              if [[ "${{ github.event_name }}" == "push" ]]; then
+                echo "Push event detected - will build $app regardless of version comparison"
+                VERSION=$(aws s3api list-objects-v2 \
+                  --bucket "$BUCKET" \
+                  --endpoint-url "$AWS_ENDPOINT_URL" \
+                  --query "sort_by(Contents[?contains(Key, '$app')], &LastModified)[-1].Key" \
+                  --output text | grep -Po "$app-[a-zA-Z-]*\K\d+\.\d+\.\d+" || true)
+                
+                if [[ -z "$VERSION" ]]; then
+                  echo "Warning: Could not extract version for $app. Skipping."
                   continue
-              fi
-              
-              # Extract version from S3 Key. Regex: appname-anychars-MAJOR.MINOR.PATCH
-              # The [a-zA-Z0-9.-]* part allows for optional segments like "-beta" or "-rc1"
-              VERSION=$(echo "$S3_KEY" | grep -Po "$app-[a-zA-Z-]*\K\d+\.\d+\.\d+" || true)
-
-              if [[ -z "$VERSION" ]]; then
-                echo "Warning: Could not extract version from S3 Key '$S3_KEY' for app '$app'. Skipping."
-                continue
-              fi
-              if [[ -z "$S3_TIMESTAMP" ]]; then
-                echo "Warning: Could not extract S3 LastModified timestamp for $app. PACKAGE_INFO: $PACKAGE_INFO. Skipping."
-                continue
-              fi
-
-              S3_EPOCH=$(date -u -d "$S3_TIMESTAMP" +%s)
-              echo "Latest S3 package: '$S3_KEY', Version: $VERSION, Timestamp: $S3_TIMESTAMP (Epoch: $S3_EPOCH)"
-
-              OWNER="${{ github.repository_owner }}"
-              API_URL="https://api.github.com/users/$OWNER/packages/container/$app/versions"
-              echo "Querying GHCR API: $API_URL for version $VERSION"
-
-              GHCR_RESPONSE_FILE=$(mktemp)
-              HTTP_STATUS=$(curl -s -L \
-                -w "%{http_code}" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                "$API_URL" \
-                -o "$GHCR_RESPONSE_FILE")
-              
-              GHCR_RESPONSE_BODY=$(<"$GHCR_RESPONSE_FILE")
-              rm "$GHCR_RESPONSE_FILE"
-              IMAGE_TIMESTAMP="" # Initialize
-
-              if [[ "$HTTP_STATUS" -ne 200 ]]; then
-                  GHCR_ERROR_MESSAGE=$(echo "$GHCR_RESPONSE_BODY" | jq -r '.message // "Unknown error message"')
-                  if [[ "$HTTP_STATUS" -eq 404 && ("$GHCR_ERROR_MESSAGE" == "Package not found." || "$GHCR_ERROR_MESSAGE" == "Not Found") ]]; then # GHCR can return "Not Found" for 404 as well
-                      echo "Warning: Package not found in GHCR for $app (HTTP 404). Message: '$GHCR_ERROR_MESSAGE'. Proceeding with build."
-                      # IMAGE_TIMESTAMP remains empty, indicating build is needed
-                  elif [[ "$HTTP_STATUS" -eq 401 || "$HTTP_STATUS" -eq 403 ]]; then
-                      echo "Error: GitHub API returned HTTP $HTTP_STATUS for $app. Message: '$GHCR_ERROR_MESSAGE'. Check GITHUB_TOKEN permissions. Failing workflow."
-                      exit 1
-                  else
-                      echo "Error: GitHub API request for $app failed with HTTP $HTTP_STATUS. Message: '$GHCR_ERROR_MESSAGE'. Response body: $GHCR_RESPONSE_BODY. Failing workflow."
-                      exit 1
-                  fi
-              else
-                  # HTTP 200, response should be an array
-                  if ! echo "$GHCR_RESPONSE_BODY" | jq -e 'type == "array"' >/dev/null 2>&1; then
-                      echo "Error: GHCR response for $app was HTTP 200 but not a JSON array. Response: $GHCR_RESPONSE_BODY. Failing workflow."
-                      exit 1
-                  fi
-                  IMAGE_TIMESTAMP=$(echo "$GHCR_RESPONSE_BODY" | jq -r --arg TAG "$VERSION" '
-                      .[] | select(.metadata.container.tags[]? == $TAG) | .created_at // empty' | head -n 1) # Take the first match if multiple
-              fi
-
-              if [[ -n "$IMAGE_TIMESTAMP" ]]; then
-                GHCR_EPOCH=$(date -u -d "$IMAGE_TIMESTAMP" +%s)
-                echo "GHCR image for $app:$VERSION found. Created at: $IMAGE_TIMESTAMP (Epoch: $GHCR_EPOCH)"
-                if [[ "$GHCR_EPOCH" -ge "$S3_EPOCH" ]]; then
-                  echo "Image $app:$VERSION is up-to-date (GHCR Epoch $GHCR_EPOCH >= S3 Epoch $S3_EPOCH). Skipping build."
-                  continue
-                else
-                  echo "Image $app:$VERSION is outdated (GHCR Epoch $GHCR_EPOCH < S3 Epoch $S3_EPOCH)."
                 fi
               else
-                echo "No existing image found in GHCR for $app:$VERSION (or package was not found). Needs build."
+                # For other events, check version comparison
+                echo "Fetching latest S3 package info for $app..."
+                PACKAGE_INFO=$(aws s3api list-objects-v2 \
+                  --bucket "$BUCKET" \
+                  --endpoint-url "$AWS_ENDPOINT_URL" \
+                  --query "sort_by(Contents[?contains(Key, '$app')], &LastModified)[-1]" \
+                  --output json || echo "null")
+
+                if [[ -z "$PACKAGE_INFO" || "$PACKAGE_INFO" == "null" ]]; then
+                  echo "Warning: No S3 package info found for $app. Skipping."
+                  continue
+                fi
+
+                S3_KEY=$(echo "$PACKAGE_INFO" | jq -r '.Key // empty')
+                S3_TIMESTAMP=$(echo "$PACKAGE_INFO" | jq -r '.LastModified // empty')
+                VERSION=$(echo "$S3_KEY" | grep -Po "$app-[a-zA-Z-]*\K\d+\.\d+\.\d+" || true)
+
+                if [[ -z "$VERSION" || -z "$S3_TIMESTAMP" ]]; then
+                  echo "Warning: Could not extract version or timestamp for $app. Skipping."
+                  continue
+                fi
+
+                S3_EPOCH=$(date -u -d "$S3_TIMESTAMP" +%s)
+                echo "Latest S3 package: '$S3_KEY', Version: $VERSION, Timestamp: $S3_TIMESTAMP (Epoch: $S3_EPOCH)"
+
+                OWNER="${{ github.repository_owner }}"
+                API_URL="https://api.github.com/users/$OWNER/packages/container/$app/versions"
+                
+                GHCR_RESPONSE_FILE=$(mktemp)
+                HTTP_STATUS=$(curl -s -L \
+                  -w "%{http_code}" \
+                  -H "Authorization: Bearer $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github+json" \
+                  "$API_URL" \
+                  -o "$GHCR_RESPONSE_FILE")
+                
+                GHCR_RESPONSE_BODY=$(<"$GHCR_RESPONSE_FILE")
+                rm "$GHCR_RESPONSE_FILE"
+
+                if [[ "$HTTP_STATUS" -eq 200 ]]; then
+                  IMAGE_TIMESTAMP=$(echo "$GHCR_RESPONSE_BODY" | jq -r --arg TAG "$VERSION" '
+                    .[] | select(.metadata.container.tags[]? == $TAG) | .created_at // empty' | head -n 1)
+                  
+                  if [[ -n "$IMAGE_TIMESTAMP" ]]; then
+                    GHCR_EPOCH=$(date -u -d "$IMAGE_TIMESTAMP" +%s)
+                    if [[ "$GHCR_EPOCH" -ge "$S3_EPOCH" ]]; then
+                      echo "Image $app:$VERSION is up-to-date. Skipping build."
+                      continue
+                    fi
+                  fi
+                fi
               fi
 
-              echo "Adding $app:$VERSION to build matrix."
               MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
               MAJOR_MINOR_VERSION=$(echo "$VERSION" | cut -d. -f1-2)
 
@@ -231,10 +196,7 @@ jobs:
             done
           fi
 
-          echo "::group::Final Build Matrix Output"
-          echo "Final matrix_json: $matrix_json"
           echo "matrix_include=$(echo "$matrix_json" | jq -c .)" >> "$GITHUB_OUTPUT"
-          echo "Generated matrix_include for GITHUB_OUTPUT: $(echo "$matrix_json" | jq -c .)"
           echo "::endgroup::"
 
   build:
