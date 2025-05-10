@@ -299,5 +299,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: success-marker-${{ matrix.name }}
-          path: ./success_marker.json
+          path: ./success_marker-${{ matrix.name }}.json
           retention-days: 1
