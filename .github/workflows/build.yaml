@@ -226,7 +226,7 @@ jobs:
                 --arg major_minor "$MAJOR_MINOR_VERSION" \
                 '{name: $name, full_version: $full, major_version: $major, major_minor_version: $major_minor}')
               matrix_json=$(echo "$matrix_json" | jq ". += [$entry]")
-              echo "Current matrix: $matrix_json"
+              echo "Added $app:$VERSION to build matrix."
               echo "::endgroup::"
             done
           fi
@@ -292,7 +292,7 @@ jobs:
         run: |
           echo "Build successful for $APP_NAME:$APP_VERSION. Creating and uploading marker."
           MARKER_CONTENT=$(jq -n --arg name "$APP_NAME" --arg ver "$APP_VERSION" --arg digest "$DIGEST" '{name: $name, tag: $ver, digest: $digest}')
-          echo "$MARKER_CONTENT" > ./success_marker.json
+          echo "$MARKER_CONTENT" > "./success_marker-$APP_NAME.json"
 
       - name: Upload individual success marker
         if: steps.apko.outcome == 'success'
