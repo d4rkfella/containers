@@ -1,0 +1,305 @@
+name: Build Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Optional: Name of a specific app from the matrix to build (e.g., vault-backup). Builds all if empty.'
+        required: false
+        type: string
+  schedule:
+    - cron: "0 4 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - '**/apko.yaml'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  determine_apps_to_build:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix_include: ${{ steps.generate_matrix.outputs.matrix_include }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Generate matrix with apps to build
+        id: generate_matrix
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+          BUCKET: packages
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+
+          echo "::group::Initialize Variables and Determine Event Type"
+          echo "Event name: ${{ github.event_name }}"
+          echo "App name input (for workflow_dispatch): '${{ github.event.inputs.app_name }}'"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Before SHA (for push): ${{ github.event.before }}"
+          echo "Ref: ${{ github.ref }}"
+
+          apps_to_check_list=() # Use bash array for apps
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "Push event detected. Identifying changed/added apko.yaml files."
+            # fetch-depth: 0 is set in the checkout step, which is required for a full diff.
+            # This command lists apko.yaml files that were Added (A) or Modified (M) in the push.
+            # For a new branch, github.event.before is '00000000...', and this diff shows all files added in the new branch.
+            changed_apko_files=$(git diff --name-only --diff-filter=AM ${{ github.event.before }} ${{ github.sha }} -- '**/apko.yaml' || true)
+
+            if [[ -n "$changed_apko_files" ]]; then
+              echo "Changed/added apko.yaml files found:"
+              echo "$changed_apko_files"
+              # Convert to array, get dirname for each, then unique sort
+              readarray -t files_array < <(echo "$changed_apko_files")
+              for file_path in "${files_array[@]}"; do
+                apps_to_check_list+=("$(dirname "$file_path" | sed 's|^\./||')")
+              done
+              
+              if [[ ${#apps_to_check_list[@]} -gt 0 ]]; then
+                IFS=$'\\n' sorted_unique_apps=($(sort -u <<<"${apps_to_check_list[*]}"))
+                unset IFS
+                apps_to_check_list=("${sorted_unique_apps[@]}")
+              fi
+            else
+              echo "No apko.yaml files were added or modified in this push."
+            fi
+
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ -n "${{ github.event.inputs.app_name }}" ]]; then
+              echo "Workflow dispatch with specific app_name: '${{ github.event.inputs.app_name }}'"
+              apps_to_check_list+=("${{ github.event.inputs.app_name }}")
+            else
+              echo "Workflow dispatch without specific app_name. Will check all apps."
+              # Find all apko.yaml files, get their directories, remove leading ./ and sort uniquely
+              readarray -t all_apps < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
+              if [[ ${#all_apps[@]} -gt 0 ]]; then
+                apps_to_check_list=("${all_apps[@]}")
+              fi
+            fi
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "Schedule event detected. Will check all apps."
+            readarray -t all_apps < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
+            if [[ ${#all_apps[@]} -gt 0 ]]; then
+              apps_to_check_list=("${all_apps[@]}")
+            fi
+          else
+            echo "Warning: Unhandled event type '${{ github.event_name }}'. Defaulting to check all apps."
+            readarray -t all_apps < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
+            if [[ ${#all_apps[@]} -gt 0 ]]; then
+              apps_to_check_list=("${all_apps[@]}")
+            fi
+          fi
+
+          echo "Final list of app directories to check (${#apps_to_check_list[@]} apps):"
+          if [[ ${#apps_to_check_list[@]} -gt 0 ]]; then
+            printf "%s\\n" "${apps_to_check_list[@]}"
+          else
+            echo "(empty list)"
+          fi
+          echo "::endgroup::"
+
+          matrix_json="[]"
+
+          if [[ ${#apps_to_check_list[@]} -eq 0 ]]; then
+            echo "No apps to check. Build matrix will be empty."
+          else
+            for app in "${apps_to_check_list[@]}"; do
+              echo "::group::Processing app: $app"
+              # Validate app directory and apko.yaml
+              if [[ ! -d "$app" || ! -f "$app/apko.yaml" ]]; then
+                echo "Warning: App directory '$app' or '$app/apko.yaml' not found. Skipping."
+                echo "::endgroup::"
+                continue
+              fi
+
+              echo "Fetching latest S3 package info for $app..."
+              PACKAGE_INFO=$(aws s3api list-objects-v2 \
+                --bucket "$BUCKET" \
+                --endpoint-url "$AWS_ENDPOINT_URL" \
+                --query "sort_by(Contents[?contains(Key, '$app')], &LastModified)[-1]" \
+                --output json || echo "null") # fallback for aws cli error, outputs "null" string
+
+              if [[ -z "$PACKAGE_INFO" || "$PACKAGE_INFO" == "null" ]]; then
+                echo "Warning: No S3 package info found for $app (or AWS CLI error). Skipping."
+                echo "::endgroup::"
+                continue
+              fi
+
+              S3_KEY=$(echo "$PACKAGE_INFO" | jq -r '.Key // empty')
+              S3_TIMESTAMP=$(echo "$PACKAGE_INFO" | jq -r '.LastModified // empty')
+
+              if [[ -z "$S3_KEY" ]]; then
+                  echo "Warning: Could not extract S3 Key for $app. PACKAGE_INFO: $PACKAGE_INFO. Skipping."
+                  echo "::endgroup::"
+                  continue
+              fi
+              
+              # Extract version from S3 Key. Regex: appname-anychars-MAJOR.MINOR.PATCH
+              # The [a-zA-Z0-9.-]* part allows for optional segments like "-beta" or "-rc1"
+              VERSION=$(echo "$S3_KEY" | grep -Po "$app-[a-zA-Z-]*\K\d+\.\d+\.\d+" || true)
+
+              if [[ -z "$VERSION" ]]; then
+                echo "Warning: Could not extract version from S3 Key '$S3_KEY' for app '$app'. Skipping."
+                echo "::endgroup::"
+                continue
+              fi
+              if [[ -z "$S3_TIMESTAMP" ]]; then
+                echo "Warning: Could not extract S3 LastModified timestamp for $app. PACKAGE_INFO: $PACKAGE_INFO. Skipping."
+                echo "::endgroup::"
+                continue
+              fi
+
+              S3_EPOCH=$(date -u -d "$S3_TIMESTAMP" +%s)
+              echo "Latest S3 package: '$S3_KEY', Version: $VERSION, Timestamp: $S3_TIMESTAMP (Epoch: $S3_EPOCH)"
+
+              OWNER="${{ github.repository_owner }}"
+              API_URL="https://api.github.com/users/$OWNER/packages/container/$app/versions"
+              echo "Querying GHCR API: $API_URL for version $VERSION"
+
+              GHCR_RESPONSE_FILE=$(mktemp)
+              HTTP_STATUS=$(curl -s -L \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "$API_URL" \
+                -o "$GHCR_RESPONSE_FILE")
+              
+              GHCR_RESPONSE_BODY=$(<"$GHCR_RESPONSE_FILE")
+              rm "$GHCR_RESPONSE_FILE"
+              IMAGE_TIMESTAMP="" # Initialize
+
+              if [[ "$HTTP_STATUS" -ne 200 ]]; then
+                  GHCR_ERROR_MESSAGE=$(echo "$GHCR_RESPONSE_BODY" | jq -r '.message // "Unknown error message"')
+                  if [[ "$HTTP_STATUS" -eq 404 && ("$GHCR_ERROR_MESSAGE" == "Package not found." || "$GHCR_ERROR_MESSAGE" == "Not Found") ]]; then # GHCR can return "Not Found" for 404 as well
+                      echo "Warning: Package not found in GHCR for $app (HTTP 404). Message: '$GHCR_ERROR_MESSAGE'. Proceeding with build."
+                      # IMAGE_TIMESTAMP remains empty, indicating build is needed
+                  elif [[ "$HTTP_STATUS" -eq 401 || "$HTTP_STATUS" -eq 403 ]]; then
+                      echo "Error: GitHub API returned HTTP $HTTP_STATUS for $app. Message: '$GHCR_ERROR_MESSAGE'. Check GITHUB_TOKEN permissions. Failing workflow."
+                      exit 1
+                  else
+                      echo "Error: GitHub API request for $app failed with HTTP $HTTP_STATUS. Message: '$GHCR_ERROR_MESSAGE'. Response body: $GHCR_RESPONSE_BODY. Failing workflow."
+                      exit 1
+                  fi
+              else
+                  # HTTP 200, response should be an array
+                  if ! echo "$GHCR_RESPONSE_BODY" | jq -e 'type == "array"' >/dev/null 2>&1; then
+                      echo "Error: GHCR response for $app was HTTP 200 but not a JSON array. Response: $GHCR_RESPONSE_BODY. Failing workflow."
+                      exit 1
+                  fi
+                  IMAGE_TIMESTAMP=$(echo "$GHCR_RESPONSE_BODY" | jq -r --arg TAG "$VERSION" '
+                      .[] | select(.metadata.container.tags[]? == $TAG) | .created_at // empty' | head -n 1) # Take the first match if multiple
+              fi
+
+              if [[ -n "$IMAGE_TIMESTAMP" ]]; then
+                GHCR_EPOCH=$(date -u -d "$IMAGE_TIMESTAMP" +%s)
+                echo "GHCR image for $app:$VERSION found. Created at: $IMAGE_TIMESTAMP (Epoch: $GHCR_EPOCH)"
+                if [[ "$GHCR_EPOCH" -ge "$S3_EPOCH" ]]; then
+                  echo "Image $app:$VERSION is up-to-date (GHCR Epoch $GHCR_EPOCH >= S3 Epoch $S3_EPOCH). Skipping build."
+                  echo "::endgroup::"
+                  continue
+                else
+                  echo "Image $app:$VERSION is outdated (GHCR Epoch $GHCR_EPOCH < S3 Epoch $S3_EPOCH)."
+                fi
+              else
+                echo "No existing image found in GHCR for $app:$VERSION (or package was not found). Needs build."
+              fi
+
+              echo "Adding $app:$VERSION to build matrix."
+              MAJOR_VERSION=$(echo "$VERSION" | cut -d. -f1)
+              MAJOR_MINOR_VERSION=$(echo "$VERSION" | cut -d. -f1-2)
+
+              entry=$(jq -n \
+                --arg name "$app" \
+                --arg full "$VERSION" \
+                --arg major "$MAJOR_VERSION" \
+                --arg major_minor "$MAJOR_MINOR_VERSION" \
+                '{name: $name, full_version: $full, major_version: $major, major_minor_version: $major_minor}')
+              matrix_json=$(echo "$matrix_json" | jq ". += [$entry]")
+              echo "Current matrix: $matrix_json"
+              echo "::endgroup::"
+            done
+          fi
+
+          echo "::group::Final Build Matrix Output"
+          echo "Final matrix_json: $matrix_json"
+          echo "matrix_include=$(echo "$matrix_json" | jq -c .)" >> "$GITHUB_OUTPUT"
+          echo "Generated matrix_include for GITHUB_OUTPUT: $(echo "$matrix_json" | jq -c .)"
+          echo "::endgroup::"
+
+  build:
+    needs: determine_apps_to_build
+    if: needs.determine_apps_to_build.outputs.matrix_include != '[]'
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{fromJson(needs.determine_apps_to_build.outputs.matrix_include)}}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
+
+      - name: Generate snapshot date
+        id: snapshot-date
+        run: |
+          echo "epoch=$(date -u +%s)" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build and Push ${{ matrix.name }} with Apko
+        uses: d4rkfella/actions/apko-snapshot@main
+        id: apko
+        with:
+          config: ${{ matrix.name }}/apko.yaml
+          source-date-epoch: ${{ steps.snapshot-date.outputs.epoch }}
+          additional-tags: ${{ matrix.full_version }},${{ matrix.major_version }},${{ matrix.major_minor_version }}
+          archs: amd64
+          slsa-attest: "true"
+          sbom-attest: "true"
+          build-repository-append: https://packages.darkfellanetwork.com
+          keyring-append: https://packages.darkfellanetwork.com/melange.rsa.pub
+          annotations: "org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/${{ matrix.name }},org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
+          base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+
+      - name: Record and Upload successful build marker
+        if: steps.apko.outcome == 'success'
+        shell: bash
+        env:
+          APP_NAME: ${{ matrix.name }}
+          APP_VERSION: ${{ matrix.full_version }}
+          DIGEST: ${{ steps.apko.outputs.digest }}
+        run: |
+          echo "Build successful for $APP_NAME:$APP_VERSION. Creating and uploading marker."
+          MARKER_CONTENT=$(jq -n --arg name "$APP_NAME" --arg ver "$APP_VERSION" --arg digest "$DIGEST" '{name: $name, tag: $ver, digest: $digest}')
+          echo "$MARKER_CONTENT" > ./success_marker.json
+
+      - name: Upload individual success marker
+        if: steps.apko.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: success-marker-${{ matrix.name }}
+          path: ./success_marker.json
+          retention-days: 1

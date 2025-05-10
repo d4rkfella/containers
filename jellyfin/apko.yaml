@@ -1,0 +1,43 @@
+contents:
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  repositories:
+    - https://packages.wolfi.dev/os
+  packages:
+    - wolfi-baselayout
+    - catatonit
+    - tzdata
+    - jellyfin-custom
+    - jellyfin-web-custom
+volumes: [ "/config", "/cache" ]
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+      homedir: ""
+      shell: ""
+  run-as: nonroot:nonroot
+environment:
+  MALLOC_TRIM_THRESHOLD_: 131072
+  DOTNET_EnableDiagnostics: 0
+  DOTNET_RUNNING_IN_CONTAINER: true
+  XDG_CACHE_HOME: /cache
+  JELLYFIN_CACHE_DIR: /cache
+  JELLYFIN_CONFIG_DIR: /config/config
+  JELLYFIN_DATA_DIR: /config
+  JELLYFIN_LOG_DIR: /config/log
+  JELLYFIN_WEB_DIR: /usr/lib/jellyfin/jellyfin-web
+  LANG: en_US.UTF-8
+  LANGUAGE: en_US:en
+  LC_ALL: en_US.UTF-8
+  NVIDIA_DRIVER_CAPABILITIES: all
+  NVIDIA_VISIBLE_DEVICES: all
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+entrypoint: 
+  command:
+   catatonit -- jellyfin

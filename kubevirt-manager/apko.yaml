@@ -1,0 +1,27 @@
+contents:
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  repositories:
+    - https://packages.wolfi.dev/os
+  packages:
+    - ca-certificates-bundle
+    - wolfi-baselayout
+    - tzdata
+    - kubevirt-manager
+accounts:
+  groups:
+    - groupname: nginx
+      gid: 65532
+  users:
+    - username: nginx
+      uid: 65532
+      gid: 65532
+  run-as: nginx:nginx
+environment:
+  LUA_PATH: /usr/share/luajit-2.1/?.lua;/usr/share/luajit-2.1/?/init.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;/usr/site/lualib/?.lua;/usr/site/lualib/?/init.lua;/usr/lualib/?.lua;/usr/lualib/?/init.lua;./?.lua
+  LUA_CPATH: /usr/lib/lua/5.1/?.so;/usr/lib/lua/5.1/loadall.so;/usr/site/lualib/?.so;/usr/lualib/?.so;./?.so
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+stop-signal: SIGQUIT
+entrypoint:
+  command: /docker-entrypoint.sh
+cmd: nginx -g "daemon off;"

@@ -1,0 +1,261 @@
+name: Scan Container Images
+
+on:
+  workflow_run:
+    workflows: ["Build Docker Images"]
+    types:
+      - completed
+  schedule:
+    - cron: "0 3 * * 0"
+
+jobs:
+  prepare_scan_matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      scan_matrix: ${{ github.event_name == 'workflow_run' && steps.generate_matrix_workflow_run.outputs.scan_matrix || steps.generate_matrix_scheduled.outputs.scan_matrix }}
+    steps:
+      - name: Download build matrix artifact
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: success-marker-*
+          path: ./downloaded-success-markers
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          merge-multiple: true
+      
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        if: github.event_name == 'schedule'
+
+      - name: Generate matrix for workflow_run trigger
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        id: generate_matrix_workflow_run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "Generating scan matrix for workflow_run trigger..."
+          final_matrix_array="[]"
+
+          for marker_file in ./downloaded-success-markers/success_marker*.json; do
+            if [[ -f "$marker_file" ]]; then
+              echo "Processing marker file: $marker_file"
+              marker_content=$(cat "$marker_file")
+              final_matrix_array=$(echo "$final_matrix_array" | jq --argjson entry "$marker_content" '. + [$entry]')
+            fi
+          done
+
+          echo "Final scan matrix content: $final_matrix_array"
+          echo "scan_matrix=$(echo "$final_matrix_array" | jq -c .)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate matrix for scheduled trigger
+        if: github.event_name == 'schedule'
+        id: generate_matrix_scheduled
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "Generating scan matrix for scheduled trigger..."
+          
+          mapfile -t apko_files < <(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
+          current_scheduled_matrix="[]"
+          if [[ ${#apko_files[@]} -eq 0 ]]; then
+            echo "No apps with apko.yaml found for scheduled scan."
+          else
+            echo "Found apps for scheduled/fallback scan: ${apko_files[*]}"
+            for app_dir in "${apko_files[@]}"; do
+              app_name=$(basename "$app_dir")
+              echo "Scheduled/Fallback: Processing app: $app_name"
+              API_URL="https://api.github.com/users/$OWNER/packages/container/$app_name/versions"
+              
+              GHCR_RESPONSE_BODY=$(curl -s -L -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$API_URL")
+
+              if echo "$GHCR_RESPONSE_BODY" | jq -e 'if type == "object" and .message == "Package not found." then true else false end' >/dev/null; then
+                echo "Scheduled/Fallback: Package $app_name not found in GHCR. Skipping."
+                continue
+              fi
+              if ! echo "$GHCR_RESPONSE_BODY" | jq -e 'type == "array"' >/dev/null; then
+                  echo "Error: GHCR response for $app_name was not a JSON array. Response: $GHCR_RESPONSE_BODY. Skipping app."
+                  continue
+              fi
+
+              latest_semver_tag=$(echo "$GHCR_RESPONSE_BODY" | jq -r '
+                [.[] | select(.metadata.container.tags and (.metadata.container.tags | length > 0))] |
+                sort_by(.created_at) | reverse | .[] |
+                .metadata.container.tags[]? |
+                select(test("^\\d+\\.\\d+\\.\\d+(-r\\d+)?$"))' |
+                head -n 1
+              )
+
+              if [[ -n "$latest_semver_tag" ]]; then
+                echo "Scheduled/Fallback: Latest semver tag for $app_name in GHCR: $latest_semver_tag"
+                
+                image_digest=$(echo "$GHCR_RESPONSE_BODY" | jq -r --arg TAG "$latest_semver_tag" '(.[] | select(.metadata.container.tags[]? == $TAG) | .name)' | head -n 1)
+
+                if [[ -n "$image_digest" && "$image_digest" == sha256:* ]]; then
+                  echo "Scheduled/Fallback: Found digest $image_digest for $app_name:$latest_semver_tag"
+                  full_image_digest="ghcr.io/$OWNER/$app_name@$image_digest"
+                  entry=$(jq -n \
+                    --arg name "$app_name" \
+                    --arg tag "$latest_semver_tag" \
+                    --arg digest "$full_image_digest" \
+                    '{name: $name, tag: $tag, digest: $digest}')
+                  current_scheduled_matrix=$(echo "$current_scheduled_matrix" | jq -c ". += [$entry]")
+                else
+                  echo "Scheduled/Fallback: CRITICAL - Could not find a valid digest for $app_name:$latest_semver_tag. Skipping this app. Digest found: '$image_digest'. GHCR Response: $GHCR_RESPONSE_BODY"
+                fi
+              else
+                echo "Scheduled/Fallback: Warning: No semver tag found for $app_name in GHCR."
+              fi
+            done
+          fi
+
+          echo "Final scan matrix content: $current_scheduled_matrix"
+          echo "scan_matrix=$(echo "$current_scheduled_matrix" | jq -c .)" >> "$GITHUB_OUTPUT"
+
+  grype:
+    name: Setup Grype
+    runs-on: ubuntu-24.04
+    needs: prepare_scan_matrix
+    if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
+    steps:
+      - name: Create Cache Key
+        id: cache
+        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Restore Database
+        id: database-restore
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          key: grype-db-${{ steps.cache.outputs.key }}
+          path: ~/.cache/grype/db
+
+      - if: ${{ always() && steps.database-restore.outputs.cache-hit != 'true' }}
+        name: Install Grype
+        uses: anchore/scan-action/download-grype@2c901ab7378897c01b8efaa2d0c9bf519cc64b9e # v6.2.0
+        id: grype
+
+      - if: ${{ always() && steps.database-restore.outputs.cache-hit != 'true' }}
+        name: Update Database
+        run: ${{ steps.grype.outputs.cmd }} db update
+
+      - if: ${{ always() && steps.database-restore.outputs.cache-hit != 'true' }}
+        name: Cache Database
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          key: grype-db-${{ steps.cache.outputs.key }}
+          path: ~/.cache/grype/db
+  
+  vulnerability-scan:
+    needs: ["prepare_scan_matrix", "grype"]
+    if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+      security-events: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.prepare_scan_matrix.outputs.scan_matrix) }}
+    steps:
+      - name: Retreive Cache Key
+        id: cache
+        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Restore Database
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          key: grype-db-${{ steps.cache.outputs.key }}
+          path: ~/.cache/grype/db
+
+      - name: Setup Cosign
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
+        with:
+          cosign-release: 'v2.5.0'
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: scan-start
+        run: |
+          echo "date=$(TZ=Zulu date "+%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Scan image
+        id: grype-scan
+        uses: anchore/scan-action@2c901ab7378897c01b8efaa2d0c9bf519cc64b9e # v6.2.0
+        with:
+          image: ${{ matrix.app.digest }}
+          output-format: sarif
+          output-file: grype-results-${{ matrix.app.name }}-${{ matrix.app.tag }}.sarif
+          fail-build: false
+          severity-cutoff: low
+
+      - name: Cosign Attest Grype results
+        shell: bash
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          ATTESTATION=$(mktemp)
+  
+          export SCANNER_URI=$(cat ${{ steps.grype-scan.outputs.sarif }} | jq -r .runs[0].tool.driver.informationUri)
+          export SCANNER_VERSION=$(cat ${{ steps.grype-scan.outputs.sarif }} | jq -r .runs[0].tool.driver.version)
+  
+          echo "grype SCANNER_URI: $SCANNER_URI"
+          echo "grype SCANNER_VERSION: $SCANNER_VERSION"
+  
+          cat > "${ATTESTATION}" <<EOF
+          {
+              "invocation": {
+                "parameters": null,
+                "uri": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                "event_id": "${{ github.run_id }}",
+                "builder.id": "${{ github.workflow }}"
+              },
+              "scanner": {
+                "uri": "$SCANNER_URI",
+                "version": "$SCANNER_VERSION",
+                "result": $(cat ${{ steps.grype-scan.outputs.sarif }} | jq .)
+              },
+              "metadata": {
+                "scanStartedOn": "${{ steps.scan-start.outputs.date }}",
+                "scanFinishedOn": "$(TZ=Zulu date "+%Y-%m-%dT%H:%M:%SZ")"
+              }
+          }
+          EOF
+  
+          export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
+  
+          cosign attest --yes \
+          --fulcio-url "https://fulcio.sigstore.dev" \
+          --rekor-url "https://rekor.sigstore.dev" \
+          --type vuln --predicate "${ATTESTATION}" ${{ matrix.app.digest }}
+
+      - name: Upload Grype SARIF report to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@60168efe1c415ce0f5521ea06d5c2062adbeed1b # v3.28.17
+        with:
+          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+          category: container:${{ matrix.app.name }}
+
+      - name: Cue Verify Attestation
+        id: cue-verify
+        shell: bash
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cat > vulnz.cue <<EOF
+            predicateType: "https://cosign.sigstore.dev/attestation/vuln/v1"
+          EOF
+          
+          export COSIGN_EXPERIMENTAL="$COSIGN_EXPERIMENTAL"
+          
+          cosign verify-attestation \
+            --type vuln --policy vulnz.cue ${{ matrix.app.digest }} --certificate-oidc-issuer "https://token.actions.githubusercontent.com" --certificate-identity "https://github.com/${{ github.workflow_ref }}" || \
+            echo "WARNING: Could not verify attestation (is this a private image?)"
