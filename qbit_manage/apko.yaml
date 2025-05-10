@@ -9,6 +9,7 @@ contents:
     - catatonit
     - tzdata
     - qbit_manage
+
 work-dir: /usr/lib/qbitmanage/app
 volumes: [ "/config" ]
 accounts:
