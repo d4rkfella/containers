@@ -5,6 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
+    - busybox
     - catatonit
     - tzdata
     - qbit_manage
