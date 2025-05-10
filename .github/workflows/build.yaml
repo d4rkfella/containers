@@ -56,11 +56,14 @@ jobs:
             for file_path in "${files_array[@]}"; do
               dir_name=$(dirname "$file_path" | sed 's|^\./||')
               if [[ -n "$dir_name" ]]; then
+                echo "changed_dirs<<EOF" >> "$GITHUB_OUTPUT"
                 echo "$dir_name" >> "$GITHUB_OUTPUT"
+                echo "EOF" >> "$GITHUB_OUTPUT"
               fi
             done
           else
             echo "No apko.yaml files were added or modified in this push."
+            echo "changed_dirs=" >> "$GITHUB_OUTPUT"
           fi
           echo "::endgroup::"
 
@@ -71,10 +74,14 @@ jobs:
           echo "::group::Processing Workflow Dispatch"
           if [[ -n "${{ github.event.inputs.app_name }}" ]]; then
             echo "Workflow dispatch with specific app_name: '${{ github.event.inputs.app_name }}'"
+            echo "changed_dirs<<EOF" >> "$GITHUB_OUTPUT"
             echo "${{ github.event.inputs.app_name }}" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
           else
             echo "Workflow dispatch without specific app_name. Will check all apps."
+            echo "changed_dirs<<EOF" >> "$GITHUB_OUTPUT"
             find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
           fi
           echo "::endgroup::"
 
@@ -84,7 +91,9 @@ jobs:
         run: |
           echo "::group::Processing Schedule Event"
           echo "Schedule event detected. Will check all apps."
+          echo "changed_dirs<<EOF" >> "$GITHUB_OUTPUT"
           find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
 
       - name: Generate Build Matrix
@@ -99,7 +108,8 @@ jobs:
           set -eo pipefail
           echo "::group::Generating Build Matrix"
 
-          mapfile -t apps_to_check_list < <(cat "$GITHUB_OUTPUT" | sort -u)
+          # Read all app directories from previous steps
+          mapfile -t apps_to_check_list < <(echo "${{ steps.push_event.outputs.changed_dirs }}${{ steps.workflow_dispatch.outputs.changed_dirs }}${{ steps.schedule.outputs.changed_dirs }}" | grep -v '^$' | sort -u)
 
           matrix_json="[]"
 
