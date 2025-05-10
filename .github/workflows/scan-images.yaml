@@ -11,6 +11,7 @@ on:
 jobs:
   prepare_scan_matrix:
     runs-on: ubuntu-24.04
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     outputs:
       scan_matrix: ${{ github.event_name == 'workflow_run' && steps.generate_matrix_workflow_run.outputs.scan_matrix || steps.generate_matrix_scheduled.outputs.scan_matrix }}
     steps:
