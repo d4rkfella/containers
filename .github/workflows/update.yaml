@@ -42,56 +42,57 @@ jobs:
         id: check_update
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
-          args: |
+          entrypoint: /bin/sh
+          args: -c |
             set -euo pipefail
             apk update
             apk add --no-cache yq
             
             echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
-            cp ${{ github.workspace }}/melange.rsa.pub /etc/apk/keys/melange.rsa.pub
-
+            cp "$GITHUB_WORKSPACE/melange.rsa.pub" /etc/apk/keys/melange.rsa.pub
+            
             APKO_FILE="${{ matrix.name }}/apko.yaml"
             APP_NAME="${{ matrix.name }}"
-
+            
             echo "Filtering pinned packages for $APP_NAME"
             echo "file_modified=false" >> "$GITHUB_OUTPUT"
-
+            
             PINNED_PACKAGES=$(yq e '.packages[] | select(test("="))' "$APKO_FILE" || echo "")
-
+            
             if [[ -z "$PINNED_PACKAGES" ]]; then
               echo "No pinned packages found in $APKO_FILE."
               exit 0
             fi
-
+            
             MATCHED=false
             LATEST_VERSION_GLOBAL=""
-
+            
             while IFS= read -r PACKAGE_PIN_LINE; do
               PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
               CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
-
+            
               if [[ "$PACKAGE_NAME" == *"$APP_NAME"* ]]; then
                 echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
-
+            
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" --no-cache | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
-
+            
                 if [[ -z "$LATEST_VERSION" ]]; then
                   echo "No latest version found for $PACKAGE_NAME"
                   continue
                 fi
-
+            
                 echo "Latest available version for $PACKAGE_NAME: $LATEST_VERSION"
-
+            
                 if printf '%s\n%s' "$CURRENT_VERSION" "$LATEST_VERSION" | sort -V -C; then
                   if [[ "$CURRENT_VERSION" != "$LATEST_VERSION" ]]; then
                     echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION..."
-
+            
                     yq e "(.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
-
+            
                     echo "file_modified=true" >> "$GITHUB_OUTPUT"
                     echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-
+            
                     LATEST_VERSION_GLOBAL="$LATEST_VERSION"
                     MATCHED=true
                     break
@@ -107,11 +108,11 @@ jobs:
                 fi
               fi
             done <<< "$PINNED_PACKAGES"
-
+            
             if [[ "$MATCHED" == true && -n "$LATEST_VERSION_GLOBAL" ]]; then
               echo "latest_version=$LATEST_VERSION_GLOBAL" >> "$GITHUB_OUTPUT"
             fi
-
+            
             if [[ "$MATCHED" == false ]]; then
               echo "No matching pinned packages found for $APP_NAME"
             fi
