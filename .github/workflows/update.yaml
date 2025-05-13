@@ -48,8 +48,11 @@ jobs:
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
           cp "$GITHUB_WORKSPACE/melange.rsa.pub" /etc/apk/keys/
 
-          apk update
-          apk add --no-cache yq coreutils
+          mkdir -p /tmp/apk-cache
+          export APK_CACHE_DIR=/tmp/apk-cache
+
+          apk update --cache-dir "$APK_CACHE_DIR"
+          apk add yq coreutils --cache-dir "$APK_CACHE_DIR"
 
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           APP_NAME="${{ matrix.name }}"
@@ -74,7 +77,7 @@ jobs:
             case "$PACKAGE_NAME" in
               *"$APP_NAME"*)
                 echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
-                LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | head -n 1 || true)
+                LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" --cache-dir "$APK_CACHE_DIR" | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
