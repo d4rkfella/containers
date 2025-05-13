@@ -19,14 +19,12 @@ jobs:
         run: |
           APP_LIST=$(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
           
-          # Generate proper matrix format
-          MATRIX_JSON=$(echo "$APP_LIST" | jq -R -s 'split("\n") | map(select(length > 0)) | {include: map({name: .})}')
+          MATRIX_JSON=$(echo "$APP_LIST" | jq -R -s --compact-output 'split("\n") | map(select(length > 0)) | {include: map({name: .})}')
           
-          # Debug output
-          echo "Generated matrix:"
+          echo "Generated matrix (compact):"
           echo "$MATRIX_JSON"
           
-          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
   check_and_update_package:
     needs: generate_matrix
