@@ -44,11 +44,12 @@ jobs:
           cat > update_script.sh << 'EOSCRIPT'
           #!/bin/sh
           set -e
-          apk update
-          apk add --no-cache yq coreutils
 
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
           cp "$GITHUB_WORKSPACE/melange.rsa.pub" /etc/apk/keys/
+
+          apk update
+          apk add --no-cache yq coreutils
 
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           APP_NAME="${{ matrix.name }}"
