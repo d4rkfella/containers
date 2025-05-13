@@ -44,10 +44,11 @@ jobs:
           cat > update_script.sh << 'EOSCRIPT'
           #!/usr/bin/ash
           set -e
-          
-          apk add yq coreutils
-          
+                   
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
+          
+          apk update
+          apk add yq coreutils
           
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           APP_NAME="${{ matrix.name }}"
@@ -72,7 +73,7 @@ jobs:
             case "$PACKAGE_NAME" in
               *"$APP_NAME"*)
                 echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
-                LATEST_FULL_STRING=$(apk search --exact --allow-untrusted --no-cache "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
+                LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
