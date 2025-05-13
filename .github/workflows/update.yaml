@@ -46,9 +46,8 @@ jobs:
           set -e
 
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
-          cp "$GITHUB_WORKSPACE/melange.rsa.pub" /etc/apk/keys/
-
-          apk update
+          
+          apk update --allow-untrusted
           apk add yq coreutils
 
           APKO_FILE="${{ matrix.name }}/apko.yaml"
@@ -74,7 +73,7 @@ jobs:
             case "$PACKAGE_NAME" in
               *"$APP_NAME"*)
                 echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
-                LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | head -n 1 || true)
+                LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" --allow-untrusted | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
@@ -112,8 +111,7 @@ jobs:
         with:
           entrypoint: /usr/bin/ash
           args: ./update_script.sh
-          options: --user root
-
+      
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
         uses: peter-evans/create-pull-request@v7
