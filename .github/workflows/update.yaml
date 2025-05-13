@@ -58,7 +58,7 @@ jobs:
             echo "Filtering pinned packages for $APP_NAME"
             echo "file_modified=false" >> "$GITHUB_OUTPUT"
             
-            PINNED_PACKAGES=$(yq e '.packages[] | select(test("="))' "$APKO_FILE" || echo "")
+            PINNED_PACKAGES=$(yq e '.contents.packages[] | select(test("="))' "$APKO_FILE" || echo "")
             
             if [[ -z "$PINNED_PACKAGES" ]]; then
               echo "No pinned packages found in $APKO_FILE."
@@ -89,7 +89,7 @@ jobs:
                   if [[ "$CURRENT_VERSION" != "$LATEST_VERSION" ]]; then
                     echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION..."
             
-                    yq e "(.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
+                    yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
             
                     echo "file_modified=true" >> "$GITHUB_OUTPUT"
                     echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
