@@ -42,7 +42,7 @@ jobs:
       - name: Create update script
         run: |
           cat > update_script.sh << 'EOSCRIPT'
-          #!/bin/sh
+          #!/usr/bin/ash
           set -e
 
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
@@ -110,7 +110,7 @@ jobs:
         id: check_update
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
-          entrypoint: /bin/sh
+          entrypoint: /usr/bin/ash
           args: ./update_script.sh
 
       - name: Create Pull Request
