@@ -72,7 +72,6 @@ jobs:
               CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
             
               if [[ "$PACKAGE_NAME" == *"$APP_NAME"* ]]; then
-                echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
             
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" --no-cache | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
