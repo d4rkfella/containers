@@ -40,8 +40,8 @@ jobs:
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
           entrypoint: /bin/ash
-          args: |
-            <<'EOF'
+          args: >-
+            -c '
             set -e
             apk update
             apk add --no-cache yq coreutils
@@ -101,7 +101,7 @@ jobs:
             done
 
             echo "No matching pinned packages found for $APP_NAME"
-            EOF
+            '
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
