@@ -46,6 +46,7 @@ jobs:
           set -e
                    
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
+          cp "$GITHUB_WORKSPACE/melange.rsa.pub" /tmp/melange.rsa.pub
           
           apk update
           apk add yq coreutils
