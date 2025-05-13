@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - cloudflared=2025.1.2-r0
+    - cloudflared=2025.4.2-r0
 accounts:
   groups:
     - groupname: nonroot
@@ -20,7 +20,6 @@ accounts:
 environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-entrypoint: 
-  command:
-    cloudflared --no-autoupdate
+entrypoint:
+  command: cloudflared --no-autoupdate
 cmd: version
