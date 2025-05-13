@@ -51,8 +51,8 @@ jobs:
   
             cp ${{ github.workspace }}/melange.rsa.pub /etc/apk/keys/melange.rsa.pub
   
-            APKO_FILE="${{ matrix.app }}/apko.yaml"
-            APP_NAME="${{ matrix.app }}"
+            APKO_FILE="${{ matrix.name }}/apko.yaml"
+            APP_NAME="${{ matrix.name }}"
   
             echo "Filtering pinned packages for $APP_NAME"
             echo "file_modified=false" >> "$GITHUB_OUTPUT"
@@ -121,8 +121,8 @@ jobs:
         if: steps.check_update.outputs.file_modified == 'true'
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
-          title: 'Update "${{ matrix.app }}" version to "${{ steps.check_update.outputs.latest_version }}"'
-          add-paths: "${{ matrix.app }}/apko.yaml"
-          branch: 'update-${{ matrix.app }}-${{ steps.check_update.outputs.latest_version }}'
-          commit-message: 'Update ${{ matrix.app }} version to ${{ steps.check_update.outputs.latest_version }}'
+          title: 'Update "${{matrix.name }}" version to "${{ steps.check_update.outputs.latest_version }}"'
+          add-paths: "${{matrix.name }}/apko.yaml"
+          branch: 'update-${{matrix.name }}-${{ steps.check_update.outputs.latest_version }}'
+          commit-message: 'Update ${{matrix.name }} version to ${{ steps.check_update.outputs.latest_version }}'
           sign-commits: true
