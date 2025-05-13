@@ -153,11 +153,29 @@ jobs:
             matrix_json=$(echo "$matrix_json" | jq ". += [$entry_json]")
           done
 
-          echo "matrix=$(echo "$matrix_json" | jq -c '{"apps": .}')" >> "$GITHUB_OUTPUT"
+          matrix_output=$(echo "$matrix_json" | jq -c '{"include": .}')
+          echo "matrix=$matrix_output" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
 
-  build:
+  setup:
     needs: prepare_matrix
+    if: needs.prepare_matrix.outputs.matrix != '[]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Preload Wolfi SDK
+        run: |
+          docker pull ghcr.io/wolfi-dev/sdk:latest
+          docker save ghcr.io/wolfi-dev/sdk:latest > wolfi-sdk.tar
+
+      - name: Upload Wolfi SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolfi-sdk
+          path: wolfi-sdk.tar
+          retention-days: 1
+
+  build:
+    needs: [prepare_matrix, setup]
     if: needs.prepare_matrix.outputs.matrix != '[]'
     runs-on: ubuntu-24.04
     permissions:
@@ -175,6 +193,10 @@ jobs:
         uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
+
+      - name: Load Wolfi SDK
+        run: |
+          docker load < wolfi-sdk.tar
 
       - name: Generate snapshot date
         id: snapshot-date
