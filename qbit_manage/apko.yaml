@@ -8,7 +8,7 @@ contents:
     - busybox
     - catatonit
     - tzdata
-    - qbit_manage
+    - qbit_manage=4.3.0-r0
 work-dir: /usr/lib/qbitmanage/app
 volumes: [ "/config" ]
 accounts:
