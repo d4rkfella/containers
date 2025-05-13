@@ -46,8 +46,8 @@ jobs:
           echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
           cp "$GITHUB_WORKSPACE/melange.rsa.pub" /etc/apk/keys/
 
-          APKO_FILE="actions-runner-controller/apko.yaml"
-          APP_NAME="actions-runner-controller"
+          APKO_FILE="${{ matrix.name }}/apko.yaml"
+          APP_NAME="${{ matrix.name }}"
 
           echo "Filtering pinned packages for $APP_NAME"
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
