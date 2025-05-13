@@ -8,6 +8,8 @@ on:
 jobs:
   generate_matrix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
@@ -30,7 +32,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
-
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
