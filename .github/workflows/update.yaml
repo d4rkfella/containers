@@ -42,7 +42,7 @@ jobs:
         id: check_update
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
-          entrypoint: /bin/sh
+          entrypoint: /bin/ash
           args: -c |
             set -euo pipefail
             apk update
@@ -80,9 +80,7 @@ jobs:
                   echo "No latest version found for $PACKAGE_NAME"
                   continue
                 fi
-            
-                echo "Latest available version for $PACKAGE_NAME: $LATEST_VERSION"
-            
+                        
                 if printf '%s\n%s' "$CURRENT_VERSION" "$LATEST_VERSION" | sort -V -C; then
                   if [[ "$CURRENT_VERSION" != "$LATEST_VERSION" ]]; then
                     echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION..."
@@ -101,7 +99,6 @@ jobs:
                     break
                   fi
                 else
-                  echo "Warning: Latest version $LATEST_VERSION is older than current $CURRENT_VERSION. Skipping."
                   MATCHED=true
                   break
                 fi
