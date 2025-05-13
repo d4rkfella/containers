@@ -91,7 +91,7 @@ jobs:
 
           mapfile -t apps_list < <(echo "${{ steps.push_event.outputs.apps_list }}${{ steps.workflow_dispatch.outputs.apps_list }}" | grep -v '^$' | sort -u)
 
-          apps_list_with_versions=""
+          declare -a versions_array=()
 
           for app in "${apps_list[@]}"; do
             echo "::group::Processing $app"
@@ -116,13 +116,13 @@ jobs:
             fi
 
             echo "Found version $VERSION for app $app"
-            apps_list_with_versions+="$app,$VERSION\n"
+            apps_list_with_versions+=("$app,$VERSION")
 
             echo "::endgroup::"
           done
 
           echo "apps_list_with_versions<<EOF" >> "$GITHUB_OUTPUT"
-          echo -n "$apps_list_with_versions" >> "$GITHUB_OUTPUT"
+          printf "%s\n" "${apps_list_with_versions[@]}" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
 
