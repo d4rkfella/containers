@@ -43,7 +43,8 @@ jobs:
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
           entrypoint: /bin/ash
-          args: -c |
+          args: >-
+            -c
             set -euo pipefail
             apk update
             apk add --no-cache yq
@@ -72,6 +73,7 @@ jobs:
               CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
             
               if [[ "$PACKAGE_NAME" == *"$APP_NAME"* ]]; then
+                echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
             
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" --no-cache | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
@@ -80,7 +82,9 @@ jobs:
                   echo "No latest version found for $PACKAGE_NAME"
                   continue
                 fi
-                        
+            
+                echo "Latest available version for $PACKAGE_NAME: $LATEST_VERSION"
+            
                 if printf '%s\n%s' "$CURRENT_VERSION" "$LATEST_VERSION" | sort -V -C; then
                   if [[ "$CURRENT_VERSION" != "$LATEST_VERSION" ]]; then
                     echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION..."
@@ -99,6 +103,7 @@ jobs:
                     break
                   fi
                 else
+                  echo "Warning: Latest version $LATEST_VERSION is older than current $CURRENT_VERSION. Skipping."
                   MATCHED=true
                   break
                 fi
