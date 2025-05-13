@@ -19,10 +19,10 @@ jobs:
         id: generate
         run: |
           APP_LIST=$(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
+
+          MATRIX_JSON=$(echo "$APP_LIST" | jq -R -s 'split("\n") | map(select(length > 0)) | map({"name": .})')          
           
-          MATRIX_JSON=$(echo "$APP_LIST" | jq -R -s 'split("\n") | map(select(length > 0)) | map({"apko_dir": .})')
-          
-          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          echo "matrix={\"include\":$MATRIX_JSON}" >> "$GITHUB_OUTPUT"
 
   check_and_update_package:
     needs: generate_matrix
