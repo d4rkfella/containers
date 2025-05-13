@@ -162,17 +162,29 @@ jobs:
     if: needs.prepare_matrix.outputs.matrix != '[]'
     runs-on: ubuntu-24.04
     steps:
+      - name: Create Cache Key
+        id: cache
+        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Restore Wolfi SDK
+        id: sdk-restore
+        uses: actions/cache/restore@v4
+        with:
+          key: wolfi-sdk-${{ steps.cache.outputs.key }}
+          path: wolfi-sdk.tar
+
       - name: Preload Wolfi SDK
+        if: steps.sdk-restore.outputs.cache-hit != 'true'
         run: |
           docker pull ghcr.io/wolfi-dev/sdk:latest
           docker save ghcr.io/wolfi-dev/sdk:latest > wolfi-sdk.tar
 
-      - name: Upload Wolfi SDK
-        uses: actions/upload-artifact@v4
+      - name: Cache Wolfi SDK
+        if: steps.sdk-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
         with:
-          name: wolfi-sdk
+          key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
-          retention-days: 1
 
   build:
     needs: [prepare_matrix, setup]
@@ -193,6 +205,16 @@ jobs:
         uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
           egress-policy: audit
+
+      - name: Create Cache Key
+        id: cache
+        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Restore Wolfi SDK
+        uses: actions/cache/restore@v4
+        with:
+          key: wolfi-sdk-${{ steps.cache.outputs.key }}
+          path: wolfi-sdk.tar
 
       - name: Load Wolfi SDK
         run: |
