@@ -45,7 +45,6 @@ jobs:
           entrypoint: /bin/ash
           args: |
             -c
-            '
             set -e
       
             apk update
@@ -106,7 +105,6 @@ jobs:
             done
       
             echo "No matching pinned packages found for $APP_NAME"
-            '
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
