@@ -63,10 +63,12 @@ jobs:
           TMP_VERSIONS=$(mktemp)
           TMP_COUNT=$(mktemp)
           echo "0" > "$TMP_COUNT"
+          TMP_MATCHED=$(mktemp)
+          echo "0" > "$TMP_MATCHED"
 
           PINNED_PACKAGES=$(yq e ".contents.packages[] | select(test(\"=\"))" "$APKO_FILE" || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
-            echo "ℹ️ No pinned packages found"
+            echo "ℹ️ No pinned packages found in $APKO_FILE"
             exit 0
           fi
 
@@ -76,10 +78,15 @@ jobs:
 
             case "$PACKAGE_NAME" in
               *"$APP_NAME"*)
+                # Increment matched packages count
+                MATCHED=$(cat "$TMP_MATCHED")
+                echo $((MATCHED + 1)) > "$TMP_MATCHED"
+
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | sed "s/^${PACKAGE_NAME}-//" || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
+                  echo "⚠️  Version check failed for $PACKAGE_NAME"
                   continue
                 fi
 
@@ -90,7 +97,7 @@ jobs:
                   yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
                   echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
                   echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                  # Increment count in temp file
+                  # Increment update count
                   COUNT=$(cat "$TMP_COUNT")
                   echo $((COUNT + 1)) > "$TMP_COUNT"
                 fi
@@ -98,8 +105,9 @@ jobs:
             esac
           done
 
-          # Get the update count
+          # Get final counts
           UPDATED_COUNT=$(cat "$TMP_COUNT")
+          MATCHED_COUNT=$(cat "$TMP_MATCHED")
 
           # Get the most recent version for PR title
           if [ -s "$TMP_VERSIONS" ]; then
@@ -109,14 +117,18 @@ jobs:
 
           # Output results
           if [ "$UPDATED_COUNT" -gt 0 ]; then
-            echo "✅ Updated $UPDATED_COUNT packages:"
+            echo "✅ Updated $UPDATED_COUNT/$MATCHED_COUNT packages:"
             cat "$TMP_UPDATES"
             echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
             cat "$TMP_UPDATES" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
+          elif [ "$MATCHED_COUNT" -gt 0 ]; then
+            echo "✅ All $MATCHED_COUNT packages are up-to-date"
+          else
+            echo "ℹ️ No packages matching '$APP_NAME' found"
           fi
 
-          rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT"
+          rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT" "$TMP_MATCHED"
           EOSCRIPT
           chmod +x update_script.sh
 
