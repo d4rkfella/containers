@@ -1,3 +1,6 @@
+annotations:
+  org.opencontainers.image.title: "Actions Runner Controller"
+  org.opencontainers.image.description: "Kubernetes controller for GitHub Actions self-hosted runners"
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
@@ -5,8 +8,8 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - actions-runner-controller
-    - actions-runner-controller-compat
+    - actions-runner-controller=0.11.0-r2
+    - actions-runner-controller-compat=0.11.0-r2
 accounts:
   groups:
     - groupname: nonroot
@@ -24,6 +27,3 @@ environment:
 entrypoint: 
   command:
     /manager
-annotations:
-  org.opencontainers.image.title: "Actions Runner Controller"
-  org.opencontainers.image.description: "Kubernetes controller for GitHub Actions self-hosted runners"
