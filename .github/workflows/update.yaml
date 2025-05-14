@@ -76,7 +76,7 @@ jobs:
               *"$APP_NAME"*)
                 echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
-                LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | cut -d- -f2- || true)
+                LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | sed 's/^.*-//' || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
                   echo "No latest version found for $PACKAGE_NAME"
