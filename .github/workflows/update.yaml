@@ -61,6 +61,8 @@ jobs:
           # Create temp files
           TMP_UPDATES=$(mktemp)
           TMP_VERSIONS=$(mktemp)
+          TMP_COUNT=$(mktemp)
+          echo "0" > "$TMP_COUNT"
 
           PINNED_PACKAGES=$(yq e ".contents.packages[] | select(test(\"=\"))" "$APKO_FILE" || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
@@ -68,7 +70,6 @@ jobs:
             exit 0
           fi
 
-          UPDATED_COUNT=0
           echo "$PINNED_PACKAGES" | while read -r PACKAGE_PIN_LINE; do
             PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
             CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
@@ -82,7 +83,6 @@ jobs:
                   continue
                 fi
 
-                # Store all versions for PR title
                 echo "$LATEST_VERSION" >> "$TMP_VERSIONS"
 
                 if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
@@ -90,11 +90,16 @@ jobs:
                   yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
                   echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
                   echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                  UPDATED_COUNT=$((UPDATED_COUNT + 1))
+                  # Increment count in temp file
+                  COUNT=$(cat "$TMP_COUNT")
+                  echo $((COUNT + 1)) > "$TMP_COUNT"
                 fi
                 ;;
             esac
           done
+
+          # Get the update count
+          UPDATED_COUNT=$(cat "$TMP_COUNT")
 
           # Get the most recent version for PR title
           if [ -s "$TMP_VERSIONS" ]; then
@@ -103,7 +108,7 @@ jobs:
           fi
 
           # Output results
-          if [ -s "$TMP_UPDATES" ]; then
+          if [ "$UPDATED_COUNT" -gt 0 ]; then
             echo "✅ Updated $UPDATED_COUNT packages:"
             cat "$TMP_UPDATES"
             echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
@@ -111,7 +116,7 @@ jobs:
             echo "EOF" >> "$GITHUB_OUTPUT"
           fi
 
-          rm -f "$TMP_UPDATES" "$TMP_VERSIONS"
+          rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT"
           EOSCRIPT
           chmod +x update_script.sh
 
