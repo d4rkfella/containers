@@ -44,12 +44,13 @@ jobs:
           cat > update_script.sh << 'EOSCRIPT'
           #!/usr/bin/ash
           set -e
-                   
+
+          apk add yq curl coreutils
+          
           echo "https://packages.darkfellanetwork.com/wolfi-os" >> /etc/apk/repositories
           curl -sL https://packages.darkfellanetwork.com/wolfi-os/melange.rsa.pub -o /etc/apk/keys/melange.rsa.pub
           
           apk update
-          apk add yq coreutils
           
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           APP_NAME="${{ matrix.name }}"
