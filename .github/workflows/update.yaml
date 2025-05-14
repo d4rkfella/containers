@@ -45,8 +45,8 @@ jobs:
           #!/usr/bin/ash
           set -e
                    
-          echo "https://packages.darkfellanetwork.com" >> /etc/apk/repositories
-          cp "$GITHUB_WORKSPACE/melange.rsa.pub" /etc/apk/keys/melange.rsa.pub
+          echo "https://packages.darkfellanetwork.com/wolfi-os" >> /etc/apk/repositories
+          curl -sL https://packages.darkfellanetwork.com/wolfi-os/melange.rsa.pub -o /etc/apk/keys/melange.rsa.pub
           
           apk update
           apk add yq coreutils
