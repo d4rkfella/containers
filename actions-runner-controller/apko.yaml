@@ -8,7 +8,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - actions-runner-controller=0.11.0-r2
+    - actions-runner-controller=r2
     - actions-runner-controller-compat=0.11.0-r2
 accounts:
   groups:
@@ -24,6 +24,5 @@ accounts:
 environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-entrypoint: 
-  command:
-    /manager
+entrypoint:
+  command: /manager
