@@ -241,7 +241,7 @@ jobs:
           sbom-attest: "true"
           build-repository-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os
           keyring-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
-          annotations: "org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/${{ matrix.name }},org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
+          annotations: "org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
           base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 
       - name: Create success marker
