@@ -58,15 +58,15 @@ jobs:
           echo "Checking for updates in $APP_NAME"
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
 
-          # Get pinned packages and handle multi-line output properly
+          # Get pinned packages
           PINNED_PACKAGES=$(yq e ".contents.packages[] | select(test(\"=\"))" "$APKO_FILE" || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
             echo "No pinned packages found in $APKO_FILE."
             exit 0
           fi
 
-          # Process each package (ash-compatible loop)
-          UPDATED_PACKAGES=""
+          # Create temp file for tracking updates
+          TMP_UPDATES=$(mktemp)
           echo "$PINNED_PACKAGES" | while read -r PACKAGE_PIN_LINE; do
             PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
             CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
@@ -85,7 +85,7 @@ jobs:
                 if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
                   echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION"
                   yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
-                  UPDATED_PACKAGES="${UPDATED_PACKAGES}${PACKAGE_NAME}=${LATEST_VERSION}\n"
+                  echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
                   echo "file_modified=true" >> "$GITHUB_OUTPUT"
                 else
                   echo "$PACKAGE_NAME is already up-to-date"
@@ -94,18 +94,19 @@ jobs:
             esac
           done
 
-          if [ -n "$UPDATED_PACKAGES" ]; then
+          if [ -s "$TMP_UPDATES" ]; then
             echo "Updated packages:"
-            printf "%b" "$UPDATED_PACKAGES"
+            cat "$TMP_UPDATES"
             echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
-            printf "%b" "$UPDATED_PACKAGES" >> "$GITHUB_OUTPUT"
+            cat "$TMP_UPDATES" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
           else
             echo "No updates available for $APP_NAME"
           fi
+          rm -f "$TMP_UPDATES"
           EOSCRIPT
           chmod +x update_script.sh
-
+      
       - name: Check and update pinned package
         id: check_update
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
