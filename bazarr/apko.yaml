@@ -7,7 +7,7 @@ contents:
     - wolfi-baselayout
     - catatonit
     - tzdata
-    - bazarr
+    - bazarr=1.5.2-r0
     - mediainfo
 work-dir: /usr/lib/bazarr/app
 volumes: [ "/config" ]
