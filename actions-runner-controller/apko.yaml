@@ -24,3 +24,6 @@ environment:
 entrypoint: 
   command:
     /manager
+annotations:
+  org.opencontainers.image.title: "Actions Runner Controller"
+  org.opencontainers.image.description: "Kubernetes controller for GitHub Actions self-hosted runners"
