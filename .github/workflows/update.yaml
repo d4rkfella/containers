@@ -55,71 +55,84 @@ jobs:
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           APP_NAME="${{ matrix.name }}"
 
-          echo "Checking for updates in $APP_NAME"
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
+          echo "latest_version=" >> "$GITHUB_OUTPUT"
 
-          # Get pinned packages
+          # Create temp files
+          TMP_UPDATES=$(mktemp)
+          TMP_VERSIONS=$(mktemp)
+
           PINNED_PACKAGES=$(yq e ".contents.packages[] | select(test(\"=\"))" "$APKO_FILE" || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
-            echo "No pinned packages found in $APKO_FILE."
+            echo "ℹ️ No pinned packages found"
             exit 0
           fi
 
-          # Create temp file for tracking updates
-          TMP_UPDATES=$(mktemp)
+          UPDATED_COUNT=0
           echo "$PINNED_PACKAGES" | while read -r PACKAGE_PIN_LINE; do
             PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
             CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
 
             case "$PACKAGE_NAME" in
               *"$APP_NAME"*)
-                echo "Checking updates for $PACKAGE_NAME"
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | sed "s/^${PACKAGE_NAME}-//" || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
-                  echo "No version info found for $PACKAGE_NAME"
                   continue
                 fi
 
+                # Store all versions for PR title
+                echo "$LATEST_VERSION" >> "$TMP_VERSIONS"
+
                 if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-                  echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION"
+                  echo "🔄 Updating $PACKAGE_NAME: $CURRENT_VERSION → $LATEST_VERSION"
                   yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
                   echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
                   echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                else
-                  echo "$PACKAGE_NAME is already up-to-date"
+                  UPDATED_COUNT=$((UPDATED_COUNT + 1))
                 fi
                 ;;
             esac
           done
 
+          # Get the most recent version for PR title
+          if [ -s "$TMP_VERSIONS" ]; then
+            LATEST_VERSION=$(sort -V "$TMP_VERSIONS" | tail -n1)
+            echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Output results
           if [ -s "$TMP_UPDATES" ]; then
-            echo "Updated packages:"
+            echo "✅ Updated $UPDATED_COUNT packages:"
             cat "$TMP_UPDATES"
             echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
             cat "$TMP_UPDATES" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
-          else
-            echo "No updates available for $APP_NAME"
           fi
-          rm -f "$TMP_UPDATES"
+
+          rm -f "$TMP_UPDATES" "$TMP_VERSIONS"
           EOSCRIPT
           chmod +x update_script.sh
-      
-      - name: Check and update pinned package
+
+      - name: Check and update packages
         id: check_update
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
           entrypoint: /usr/bin/ash
           args: ./update_script.sh
-      
+
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          title: 'Update "${{ matrix.name }}" version to "${{ steps.check_update.outputs.latest_version }}"'
+          title: 'Update "${{ matrix.name }}" to ${{ steps.check_update.outputs.latest_version }}'
+          body: |
+            Automated package update:
+            ```
+            ${{ steps.check_update.outputs.updated_packages }}
+            ```
           add-paths: "${{ matrix.name }}/apko.yaml"
           branch: 'update-${{ matrix.name }}-${{ steps.check_update.outputs.latest_version }}'
-          commit-message: 'Update ${{ matrix.name }} version to ${{ steps.check_update.outputs.latest_version }}'
+          commit-message: 'Update ${{ matrix.name }} to ${{ steps.check_update.outputs.latest_version }}'
           sign-commits: true
