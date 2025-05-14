@@ -58,15 +58,16 @@ jobs:
           echo "Checking for updates in $APP_NAME"
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
 
+          # Get pinned packages and handle multi-line output properly
           PINNED_PACKAGES=$(yq e ".contents.packages[] | select(test(\"=\"))" "$APKO_FILE" || echo "")
-
           if [ -z "$PINNED_PACKAGES" ]; then
             echo "No pinned packages found in $APKO_FILE."
             exit 0
           fi
 
+          # Process each package (ash-compatible loop)
           UPDATED_PACKAGES=""
-          while read PACKAGE_PIN_LINE; do
+          echo "$PINNED_PACKAGES" | while read -r PACKAGE_PIN_LINE; do
             PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
             CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
 
@@ -91,13 +92,13 @@ jobs:
                 fi
                 ;;
             esac
-          done <<< "$PINNED_PACKAGES"
+          done
 
           if [ -n "$UPDATED_PACKAGES" ]; then
             echo "Updated packages:"
-            echo -e "$UPDATED_PACKAGES"
+            printf "%b" "$UPDATED_PACKAGES"
             echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
-            echo -e "$UPDATED_PACKAGES" >> "$GITHUB_OUTPUT"
+            printf "%b" "$UPDATED_PACKAGES" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
           else
             echo "No updates available for $APP_NAME"
