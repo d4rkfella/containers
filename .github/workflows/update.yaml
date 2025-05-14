@@ -55,7 +55,7 @@ jobs:
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           APP_NAME="${{ matrix.name }}"
 
-          echo "Filtering pinned packages for $APP_NAME"
+          echo "Checking for updates in $APP_NAME"
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
 
           PINNED_PACKAGES=$(yq e ".contents.packages[] | select(test(\"=\"))" "$APKO_FILE" || echo "")
@@ -65,45 +65,43 @@ jobs:
             exit 0
           fi
 
-          MATCHED=false
-          LATEST_VERSION_GLOBAL=""
-
-          echo "$PINNED_PACKAGES" | while read PACKAGE_PIN_LINE; do
+          UPDATED_PACKAGES=""
+          while read PACKAGE_PIN_LINE; do
             PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
             CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
 
             case "$PACKAGE_NAME" in
               *"$APP_NAME"*)
-                echo "Fuzzy match found: $PACKAGE_NAME matches $APP_NAME"
+                echo "Checking updates for $PACKAGE_NAME"
                 LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
                 LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | sed "s/^${PACKAGE_NAME}-//" || true)
 
                 if [ -z "$LATEST_VERSION" ]; then
-                  echo "No latest version found for $PACKAGE_NAME"
+                  echo "No version info found for $PACKAGE_NAME"
                   continue
                 fi
 
-                echo "Latest available version for $PACKAGE_NAME: $LATEST_VERSION"
-
                 if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-                  echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION..."
-
+                  echo "Updating $PACKAGE_NAME from $CURRENT_VERSION to $LATEST_VERSION"
                   yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
-
+                  UPDATED_PACKAGES="${UPDATED_PACKAGES}${PACKAGE_NAME}=${LATEST_VERSION}\n"
                   echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                  echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
-                  echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
-
-                  exit 0
                 else
-                  echo "$PACKAGE_NAME is already up-to-date."
-                  exit 0
+                  echo "$PACKAGE_NAME is already up-to-date"
                 fi
                 ;;
             esac
-          done
+          done <<< "$PINNED_PACKAGES"
 
-          echo "No matching pinned packages found for $APP_NAME"
+          if [ -n "$UPDATED_PACKAGES" ]; then
+            echo "Updated packages:"
+            echo -e "$UPDATED_PACKAGES"
+            echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
+            echo -e "$UPDATED_PACKAGES" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "No updates available for $APP_NAME"
+          fi
           EOSCRIPT
           chmod +x update_script.sh
 
