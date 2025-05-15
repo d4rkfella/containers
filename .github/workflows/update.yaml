@@ -44,7 +44,7 @@ jobs:
         uses: docker://cgr.dev/chainguard/wolfi-base:latest
         with:
           entrypoint: /usr/bin/ash
-          args: ./scripts/check-packages.sh
+          args: ./.github/scripts/check-packages.sh
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
