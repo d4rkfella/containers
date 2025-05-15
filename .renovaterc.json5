@@ -15,8 +15,7 @@
       matchStrings: [
         '^\\s*-\\s*(?<depName>[a-zA-Z0-9_-]+)\\s*=\\s*(?<currentValue>[a-zA-Z0-9.+-]+)\\s*$',
       ],
-      "datasource": "apk",
-      "versioning": "apk"
+      datasourceTemplate: 'apk',
     },
   ],
   hostRules: [
