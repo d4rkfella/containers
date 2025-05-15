@@ -160,13 +160,13 @@ jobs:
           path: wolfi-sdk.tar
 
       - name: Preload Wolfi SDK
-        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true'
+        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true' }}
         run: |
           docker pull ghcr.io/wolfi-dev/sdk:latest
           docker save ghcr.io/wolfi-dev/sdk:latest > wolfi-sdk.tar
 
       - name: Cache Wolfi SDK
-        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true'
+        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
