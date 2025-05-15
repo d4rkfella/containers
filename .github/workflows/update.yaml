@@ -186,7 +186,7 @@ jobs:
 
           rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT" "$TMP_MATCHED"
           EOSCRIPT
-          chmod +x "${{ github.workspace }}update_script.sh"
+          chmod +x "${{ github.workspace }}/update_script.sh"
 
       - name: Check and update packages
         id: check_update
