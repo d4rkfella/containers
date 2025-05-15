@@ -195,6 +195,7 @@ jobs:
             -v "${{ github.workspace }}:${{ github.workspace }}" \
             -v "${GITHUB_OUTPUT}:${GITHUB_OUTPUT}" \
             -w "${{ github.workspace }}" \
+            -e GITHUB_OUTPUT="$GITHUB_OUTPUT" \
             --entrypoint /usr/bin/ash \
             cgr.dev/chainguard/wolfi-base:latest \
             "${{ github.workspace }}/update_script.sh"
