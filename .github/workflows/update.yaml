@@ -34,21 +34,21 @@ jobs:
         id: cache
         run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Restore Wolfi Base
-        id: sdk-restore
+      - name: Restore Wolfi Base Image
+        id: image-restore
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           key: wolfi-base-${{ steps.cache.outputs.key }}
           path: wolfi-base.tar
 
-      - name: Preload Wolfi Base
-        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true'
+      - name: Preload Wolfi Base Image
+        if: ${{ always() && steps.image-restore.outputs.cache-hit != 'true' }}
         run: |
           docker pull cgr.dev/chainguard/wolfi-base:latest
           docker save cgr.dev/chainguard/wolfi-base:latest > wolfi-base.tar
 
-      - name: Cache Wolfi SDK
-        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true'
+      - name: Cache Wolfi Base Image
+        if: ${{ always() && steps.image-restore.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           key: wolfi-base-${{ steps.cache.outputs.key }}
