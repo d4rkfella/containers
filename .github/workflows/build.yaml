@@ -145,7 +145,7 @@ jobs:
 
   setup:
     needs: prepare_matrix
-    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include != [] }}
+    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-24.04
     steps:
       - name: Create Cache Key
@@ -174,7 +174,7 @@ jobs:
 
   build:
     needs: [prepare_matrix, setup]
-    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include != [] }}
+    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
