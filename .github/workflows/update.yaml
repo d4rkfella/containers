@@ -92,15 +92,28 @@ jobs:
 
                 echo "$LATEST_VERSION" >> "$TMP_VERSIONS"
 
-                if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-                  echo "🔄 Updating $PACKAGE_NAME: $CURRENT_VERSION → $LATEST_VERSION"
-                  yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
-                  echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
-                  echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                  # Increment update count
-                  COUNT=$(cat "$TMP_COUNT")
-                  echo $((COUNT + 1)) > "$TMP_COUNT"
-                fi
+                # Use apk's version comparison
+                VERSION_COMPARE=$(apk version -t "$CURRENT_VERSION" "$LATEST_VERSION")
+                case "$VERSION_COMPARE" in
+                  ">")
+                    echo "⚠️  Current version ($CURRENT_VERSION) is NEWER than available ($LATEST_VERSION) for $PACKAGE_NAME"
+                    ;;
+                  "=")
+                    echo "✓ $PACKAGE_NAME is up-to-date ($CURRENT_VERSION)"
+                    ;;
+                  "<")
+                    echo "🔄 Updating $PACKAGE_NAME: $CURRENT_VERSION → $LATEST_VERSION"
+                    yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
+                    echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
+                    echo "file_modified=true" >> "$GITHUB_OUTPUT"
+                    # Increment update count
+                    COUNT=$(cat "$TMP_COUNT")
+                    echo $((COUNT + 1)) > "$TMP_COUNT"
+                    ;;
+                  *)
+                    echo "⚠️  Invalid version comparison for $PACKAGE_NAME ($CURRENT_VERSION vs $LATEST_VERSION)"
+                    ;;
+                esac
                 ;;
             esac
           done
@@ -111,7 +124,7 @@ jobs:
 
           # Get the most recent version for PR title
           if [ -s "$TMP_VERSIONS" ]; then
-            LATEST_VERSION=$(sort -V "$TMP_VERSIONS" | tail -n1)
+            LATEST_VERSION=$(sort -Vr "$TMP_VERSIONS" | head -n1)
             echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
           fi
 
@@ -123,7 +136,7 @@ jobs:
             cat "$TMP_UPDATES" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
           elif [ "$MATCHED_COUNT" -gt 0 ]; then
-            echo "✅ All $MATCHED_COUNT packages are up-to-date"
+            echo "✅ All packages are up-to-date"
           else
             echo "ℹ️ No packages matching '$APP_NAME' found"
           fi
