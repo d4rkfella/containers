@@ -74,63 +74,79 @@ jobs:
         run: |
           set -eo pipefail
           echo "::group::Determine Container version"
-
+      
           mapfile -t apps_list < <(echo "${{ steps.push_event.outputs.apps_list }}${{ steps.workflow_dispatch.outputs.apps_list }}" | grep -v '^$' | sort -u)
-
-          declare -a versions_array=()
-
+      
+          declare -a apps_list_with_versions=()
+      
           for app in "${apps_list[@]}"; do
             echo "::group::Processing $app"
-
+      
             APKO_FILE="${app}/apko.yaml"
-
+      
             VERSION_LINE=$(yq '.contents.packages[]' "$APKO_FILE" | grep -E "^${app}[^=]*=" | head -n 1 || true)
-
+      
             if [[ -z "$VERSION_LINE" ]]; then
               echo "Warning: No pinned package line matched for $app in $APKO_FILE. Skipping."
               echo "::endgroup::"
               continue
             fi
-
+      
             PACKAGE_VERSION=$(echo "$VERSION_LINE" | cut -d= -f2)
             VERSION=$(echo "$PACKAGE_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
-
+      
             if [[ -z "$VERSION" ]]; then
               echo "Warning: Could not extract semantic version from '$PACKAGE_VERSION'. Skipping."
               echo "::endgroup::"
               continue
             fi
-
+      
             echo "Found version $VERSION for app $app"
             apps_list_with_versions+=("$app,$VERSION")
-
+      
             echo "::endgroup::"
           done
-
-          echo "apps_list_with_versions<<EOF" >> "$GITHUB_OUTPUT"
-          printf "%s\n" "${apps_list_with_versions[@]}" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+      
+          if [ "${#apps_list_with_versions[@]}" -eq 0 ]; then
+            echo "apps_list_with_versions=" >> "$GITHUB_OUTPUT"
+          else
+            echo "apps_list_with_versions<<EOF" >> "$GITHUB_OUTPUT"
+            printf "%s\n" "${apps_list_with_versions[@]}" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+      
           echo "::endgroup::"
-
+      
       - name: Generate Build Matrix
         id: generate_matrix
         shell: bash
         run: |
           set -eo pipefail
           echo "::group::Generating Build Matrix"
-          
+      
           matrix_json="[]"
-          mapfile -t apps_list_with_versions < <(echo "${{ steps.determine_version.outputs.apps_list_with_versions }}")
-          
-          if [ "${#apps_list_with_versions[@]}" -gt 0 ]; then
+      
+          if [[ -z "${{ steps.determine_version.outputs.apps_list_with_versions }}" ]]; then
+            echo "No apps with versions found, skipping matrix generation."
+          else
+            mapfile -t apps_list_with_versions < <(echo "${{ steps.determine_version.outputs.apps_list_with_versions }}")
+      
             for entry in "${apps_list_with_versions[@]}"; do
+              if [[ -z "$entry" ]]; then
+                continue
+              fi
+      
               IFS=, read -r app version <<< "$entry"
-          
+      
+              if [[ -z "$app" || -z "$version" ]]; then
+                continue
+              fi
+      
               echo "Formatting matrix entry for $app:$version"
-          
+      
               MAJOR_VERSION=$(echo "$version" | cut -d. -f1)
               MAJOR_MINOR_VERSION=$(echo "$version" | cut -d. -f1-2)
-          
+      
               entry_json=$(jq -n \
                 --arg name "$app" \
                 --arg full_version "$version" \
@@ -139,10 +155,8 @@ jobs:
                 '{name: $name, full_version: $full_version, major_version: $major_version, major_minor_version: $major_minor_version}')
               matrix_json=$(echo "$matrix_json" | jq ". += [$entry_json]")
             done
-          else
-            echo "No apps found, matrix will be empty"
           fi
-          
+      
           matrix_output=$(echo "$matrix_json" | jq -c '{"include": .}')
           echo "matrix=$matrix_output" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
