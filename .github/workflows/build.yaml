@@ -15,8 +15,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 jobs:
   prepare_matrix:
@@ -28,18 +26,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-
-      - name: Initialize Variables
-        id: init
-        shell: bash
-        run: |
-          echo "::group::Initialize Variables"
-          echo "Event name: ${{ github.event_name }}"
-          echo "App name input (for workflow_dispatch): '${{ github.event.inputs.app_name }}'"
-          echo "Commit SHA: ${{ github.sha }}"
-          echo "Before SHA (for push): ${{ github.event.before }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "::endgroup::"
 
       - name: Handle Push Event
         id: push_event
@@ -168,20 +154,20 @@ jobs:
 
       - name: Restore Wolfi SDK
         id: sdk-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
 
       - name: Preload Wolfi SDK
-        if: steps.sdk-restore.outputs.cache-hit != 'true'
+        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true'
         run: |
           docker pull ghcr.io/wolfi-dev/sdk:latest
           docker save ghcr.io/wolfi-dev/sdk:latest > wolfi-sdk.tar
 
       - name: Cache Wolfi SDK
-        if: steps.sdk-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
@@ -206,12 +192,12 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Create Cache Key
+      - name: Retreive Cache Key
         id: cache
         run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Restore Wolfi SDK
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
@@ -257,7 +243,7 @@ jobs:
 
       - name: Upload success marker
         if: steps.apko.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: success-marker-${{ matrix.name }}
           path: ./success_marker-${{ matrix.name }}.json
