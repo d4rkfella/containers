@@ -1,6 +1,3 @@
-annotations:
-  org.opencontainers.image.title: "Prometheus smartctl exporter"
-  org.opencontainers.image.description: "Export smartctl statistics to prometheus."
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
