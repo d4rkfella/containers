@@ -1,39 +1,55 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "enabledManagers": ["regex"],
-  "regexManagers": [
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+  ],
+  enabledManagers: [
+    'custom.regex',
+  ],
+  customManagers: [
     {
-      "fileMatch": ["^.*apko\\.yaml$"],
-      "matchStrings": [
-        "packages:\\s+-\\s+(?<depName>[^=]+)=(?<currentValue>[^\\s]+)"
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^.*apko\\.yaml$/',
       ],
-      "datasourceTemplate": "apk"
-    }
+      matchStrings: [
+        'packages:\\s+-\\s+(?<depName>[^=]+)=(?<currentValue>[^\\s]+)',
+      ],
+      datasourceTemplate: 'apk',
+    },
   ],
-  "hostRules": [
+  hostRules: [
     {
-      "hostType": "apk",
-      "matchHost": "packages.darkfellanetwork.com"
+      hostType: 'apk',
+      matchHost: 'packages.darkfellanetwork.com',
     },
     {
-      "hostType": "apk",
-      "matchHost": "packages.wolfi.dev"
-    }
+      hostType: 'apk',
+      matchHost: 'packages.wolfi.dev',
+    },
   ],
-  "packageRules": [
+  packageRules: [
     {
-      "description": "Automerge safe updates",
-      "matchDatasources": ["apk"],
-      "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true
+      description: 'Automerge safe updates',
+      matchDatasources: [
+        'apk',
+      ],
+      matchUpdateTypes: [
+        'patch',
+        'minor',
+      ],
+      automerge: true,
     },
     {
-      "description": "Group all APK updates",
-      "matchDatasources": ["apk"],
-      "groupName": "APK package updates",
-      "schedule": ["before 5am on monday"]
-    }
+      description: 'Group all APK updates',
+      matchDatasources: [
+        'apk',
+      ],
+      groupName: 'APK package updates',
+      schedule: [
+        'before 5am on monday',
+      ],
+    },
   ],
-  "dependencyDashboard": true
+  dependencyDashboard: true,
 }
