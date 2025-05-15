@@ -118,27 +118,31 @@ jobs:
         run: |
           set -eo pipefail
           echo "::group::Generating Build Matrix"
-
+          
           matrix_json="[]"
           mapfile -t apps_list_with_versions < <(echo "${{ steps.determine_version.outputs.apps_list_with_versions }}")
-
-          for entry in "${apps_list_with_versions[@]}"; do
-            IFS=, read -r app version <<< "$entry"
-
-            echo "Formatting matrix entry for $app:$version"
-
-            MAJOR_VERSION=$(echo "$version" | cut -d. -f1)
-            MAJOR_MINOR_VERSION=$(echo "$version" | cut -d. -f1-2)
-
-            entry_json=$(jq -n \
-              --arg name "$app" \
-              --arg full_version "$version" \
-              --arg major_version "$MAJOR_VERSION" \
-              --arg major_minor_version "$MAJOR_MINOR_VERSION" \
-              '{name: $name, full_version: $full_version, major_version: $major_version, major_minor_version: $major_minor_version}')
-            matrix_json=$(echo "$matrix_json" | jq ". += [$entry_json]")
-          done
-
+          
+          if [ "${#apps_list_with_versions[@]}" -gt 0 ]; then
+            for entry in "${apps_list_with_versions[@]}"; do
+              IFS=, read -r app version <<< "$entry"
+          
+              echo "Formatting matrix entry for $app:$version"
+          
+              MAJOR_VERSION=$(echo "$version" | cut -d. -f1)
+              MAJOR_MINOR_VERSION=$(echo "$version" | cut -d. -f1-2)
+          
+              entry_json=$(jq -n \
+                --arg name "$app" \
+                --arg full_version "$version" \
+                --arg major_version "$MAJOR_VERSION" \
+                --arg major_minor_version "$MAJOR_MINOR_VERSION" \
+                '{name: $name, full_version: $full_version, major_version: $major_version, major_minor_version: $major_minor_version}')
+              matrix_json=$(echo "$matrix_json" | jq ". += [$entry_json]")
+            done
+          else
+            echo "No apps found, matrix will be empty"
+          fi
+          
           matrix_output=$(echo "$matrix_json" | jq -c '{"include": .}')
           echo "matrix=$matrix_output" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
