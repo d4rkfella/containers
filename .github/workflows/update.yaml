@@ -193,7 +193,6 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:${{ github.workspace }}" \
-            -w "${{ github.workspace }}" \
             --entrypoint /usr/bin/ash \
             cgr.dev/chainguard/wolfi-base:latest \
             "${{ github.workspace }}/update_script.sh"
