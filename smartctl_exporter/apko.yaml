@@ -4,7 +4,7 @@ contents:
   repositories:
     - https://packages.wolfi.dev/os
   packages:
-    - wolfi-baselayout
+    - wolfi-base
     - smartctl_exporter
 accounts:
   groups:
