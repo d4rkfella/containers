@@ -190,10 +190,13 @@ jobs:
 
       - name: Check and update packages
         id: check_update
-        uses: docker://cgr.dev/chainguard/wolfi-base:latest
-        with:
-          entrypoint: /usr/bin/ash
-          args: ./update_script.sh
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            --entrypoint /usr/bin/ash \
+            cgr.dev/chainguard/wolfi-base:latest \
+            ./update_script.sh
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
