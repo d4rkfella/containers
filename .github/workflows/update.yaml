@@ -84,7 +84,7 @@ jobs:
 
       - name: Create update script
         run: |
-          cat > update_script.sh << 'EOSCRIPT'
+          cat > "${{ github.workspace }}/update_script.sh" << 'EOSCRIPT'
           #!/usr/bin/ash
           set -e
 
@@ -186,7 +186,7 @@ jobs:
 
           rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT" "$TMP_MATCHED"
           EOSCRIPT
-          chmod +x update_script.sh
+          chmod +x "${{ github.workspace }}update_script.sh"
 
       - name: Check and update packages
         id: check_update
@@ -196,7 +196,7 @@ jobs:
             -w "${{ github.workspace }}" \
             --entrypoint /usr/bin/ash \
             cgr.dev/chainguard/wolfi-base:latest \
-            ./update_script.sh
+            "${{ github.workspace }}/update_script.sh"
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
