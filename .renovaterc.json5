@@ -13,6 +13,7 @@
         '  - (?<depName>[a-zA-Z0-9._+-]+)=(?<currentValue>[a-zA-Z0-9._+-]+)',
       ],
       datasourceTemplate: 'apk',
+      registryUrls: ["https://packages.wolfi.dev/os"],
     },
   ],
   hostRules: [
