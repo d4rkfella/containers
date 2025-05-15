@@ -10,7 +10,7 @@
         '/^.*apko\\.yaml$/',
       ],
       matchStrings: [
-        '(?:^|\\n)\\s{2,4}-(?<depName>[^=\\s]+)=(?<currentValue>\\S+)',
+        '\\s+- (?<depName>[a-zA-Z0-9._+-]+)=(?<currentValue>[a-zA-Z0-9._+-]+)',
       ],
       datasourceTemplate: 'apk',
     },
