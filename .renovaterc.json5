@@ -8,29 +8,28 @@
       "matchStrings": [
         "packages:\\s+-\\s+(?<depName>[^=]+)=(?<currentValue>[^\\s]+)"
       ],
-      "datasourceTemplate": "apk",
-      "versioning": "apk",
-      "registryUrls": [
-        "https://packages.darkfellanetwork.com/wolfi-os",
-        "https://packages.wolfi.dev/os"
-      ]
+      "datasourceTemplate": "apk"
     }
   ],
   "hostRules": [
     {
       "hostType": "apk",
       "matchHost": "packages.darkfellanetwork.com"
-      // Add auth here if needed (see below)
+    },
+    {
+      "hostType": "apk",
+      "matchHost": "packages.wolfi.dev"
     }
   ],
   "packageRules": [
     {
       "description": "Automerge safe updates",
+      "matchDatasources": ["apk"],
       "matchUpdateTypes": ["patch", "minor"],
-      "automerge": false
+      "automerge": true
     },
     {
-      "description": "Group all APK updates together",
+      "description": "Group all APK updates",
       "matchDatasources": ["apk"],
       "groupName": "APK package updates",
       "schedule": ["before 5am on monday"]
