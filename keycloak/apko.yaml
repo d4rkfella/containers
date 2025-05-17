@@ -23,11 +23,10 @@ accounts:
   run-as: 65532:65532
 paths:
   - path: /usr/share/java/keycloak/data
-    type: dir
+    type: directory
     uid: 65532
     gid: 65532
-    permissions: 493
-    recursive: false
+    permissions: 0o750
 environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
