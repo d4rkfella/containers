@@ -16,7 +16,7 @@ accounts:
       gid: 65532
       homedir: ""
       shell: ""
-  run-as: nonroot:nonroot
+  run-as: 65532:65532
 environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
