@@ -22,7 +22,7 @@ accounts:
       shell: ""
   run-as: 65532:65532
 paths:
-  - path: /usr/share/java/keycloak/data
+  - path: /usr/share/java/keycloak
     type: directory
     uid: 65532
     gid: 65532
