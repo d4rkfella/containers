@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - prowlarr
+    - prowlarr=1.35.1.5034-r0
     - catatonit
     - tzdata
 work-dir: /config
