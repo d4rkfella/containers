@@ -10,6 +10,7 @@ contents:
     - bubblewrap
     - yq
     - jfrog-cli
+    - talosctl
 paths:
   - path: /home/runner
     type: directory
