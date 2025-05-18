@@ -4,8 +4,8 @@ contents:
   repositories:
     - https://packages.wolfi.dev/os
   packages:
-    - ca-certificates-bundle=20241121-r40
-    - wolfi-baselayout=20230201-r20
+    - ca-certificates-bundle
+    - wolfi-baselayout
     - cloudflared=2025.5.0-r0
 accounts:
   groups:
