@@ -10,7 +10,6 @@ contents:
     - bubblewrap
     - yq
     - jfrog-cli
-    - curl
 paths:
   - path: /home/runner
     type: directory
