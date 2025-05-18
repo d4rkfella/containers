@@ -1,0 +1,35 @@
+contents:
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  repositories:
+    - https://packages.wolfi.dev/os
+  packages:
+    - actions-runner=2.324.0-r0
+    - runner-container-hooks-k8s=0.7.0-r0
+    - melange
+    - bubblewrap
+    - yq
+    - jfrog-cli
+paths:
+  - path: /home/runner
+    type: directory
+    uid: 1001
+    gid: 1001
+    permissions: 0o750
+accounts:
+  groups:
+    - groupname: runner
+      gid: 1001
+  users:
+    - username: runner
+      uid: 1001
+      gid: 1001
+      homedir: ""
+      shell: /bin/bash
+  run-as: 1001:1001
+environment:
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  RUNNER_MANUALLY_TRAP_SIG: 1
+  ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT: 1
+  DOTNET_RUNNING_IN_CONTAINER: true
