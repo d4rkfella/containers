@@ -10,12 +10,14 @@ contents:
     - bubblewrap
     - yq
     - jfrog-cli
+    - curl
 paths:
   - path: /home/runner
     type: directory
     uid: 1001
     gid: 1001
     permissions: 0o750
+    recursive: true
 accounts:
   groups:
     - groupname: runner
