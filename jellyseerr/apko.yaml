@@ -6,7 +6,7 @@ contents:
   packages:
     - wolfi-baselayout
     - catatonit
-    - jellyseerr
+    - jellyseerr=2.5.2-r0
     - tzdata
 work-dir: /usr/lib/jellyseerr
 volumes: [ "/config" ]
