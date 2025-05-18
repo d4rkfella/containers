@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - qbittorrent-nox-static
+    - qbittorrent-nox-static=5.1.0_p2011-r0
     - cross-seed-search
     - tzdata
     - catatonit
