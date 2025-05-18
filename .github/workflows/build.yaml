@@ -83,16 +83,34 @@ jobs:
             echo "::group::Processing $app"
       
             APKO_FILE="${app}/apko.yaml"
-      
-            VERSION_LINE=$(yq '.contents.packages[]' "$APKO_FILE" | grep -E "^${app}[^=]*=" | head -n 1 || true)
-      
-            if [[ -z "$VERSION_LINE" ]]; then
-              echo "Warning: No pinned package line matched for $app in $APKO_FILE. Skipping."
+            if [[ ! -f "$APKO_FILE" ]]; then
+              echo "Warning: apko.yaml not found for $app. Skipping."
               echo "::endgroup::"
               continue
             fi
       
-            PACKAGE_VERSION=$(echo "$VERSION_LINE" | cut -d= -f2)
+            # Read package lines from apko.yaml
+            mapfile -t packages < <(yq '.contents.packages[]' "$APKO_FILE")
+      
+            matched_line=""
+            # Loop over packages and fuzzy match with app folder name
+            for pkg_line in "${packages[@]}"; do
+              pkg_name="${pkg_line%%=*}"
+      
+              # Check substring match both ways
+              if [[ "$app" == *"$pkg_name"* ]] || [[ "$pkg_name" == *"$app"* ]]; then
+                matched_line="$pkg_line"
+                break  # stop at first match; remove break to collect multiple matches if needed
+              fi
+            done
+      
+            if [[ -z "$matched_line" ]]; then
+              echo "Warning: No matching package found for $app in $APKO_FILE. Skipping."
+              echo "::endgroup::"
+              continue
+            fi
+      
+            PACKAGE_VERSION=$(echo "$matched_line" | cut -d= -f2)
             VERSION=$(echo "$PACKAGE_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
       
             if [[ -z "$VERSION" ]]; then
