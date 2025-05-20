@@ -259,7 +259,7 @@ jobs:
           config: ${{ matrix.name }}/apko.yaml
           source-date-epoch: ${{ steps.snapshot-date.outputs.epoch }}
           additional-tags: ${{ matrix.full_version }},${{ matrix.major_version }},${{ matrix.major_minor_version }}
-          archs: amd64
+          archs: amd64,arm64
           slsa-attest: "true"
           sbom-attest: "true"
           build-repository-append: https://packages.darkfellanetwork.com/wolfi-os
