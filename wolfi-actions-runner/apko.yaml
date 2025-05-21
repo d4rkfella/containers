@@ -6,10 +6,7 @@ contents:
   packages:
     - actions-runner=2.324.0-r0
     - runner-container-hooks-k8s=0.7.0-r0
-    - melange
-    - bubblewrap
     - yq
-    - jfrog-cli
     - talosctl
 paths:
   - path: /home/runner
