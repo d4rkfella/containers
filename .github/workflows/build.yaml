@@ -82,25 +82,17 @@ jobs:
           for app in "${apps_list[@]}"; do
             echo "::group::Processing $app"
       
-            APKO_FILE="${app}/apko.yaml"
-            if [[ ! -f "$APKO_FILE" ]]; then
-              echo "Warning: apko.yaml not found for $app. Skipping."
-              echo "::endgroup::"
-              continue
-            fi
-      
-            # Read package lines from apko.yaml
+            APKO_FILE="${app}/apko.yaml"      
+            
             mapfile -t packages < <(yq '.contents.packages[]' "$APKO_FILE")
       
             matched_line=""
-            # Loop over packages and fuzzy match with app folder name
             for pkg_line in "${packages[@]}"; do
               pkg_name="${pkg_line%%=*}"
       
-              # Check substring match both ways
               if [[ "$app" == *"$pkg_name"* ]] || [[ "$pkg_name" == *"$app"* ]]; then
                 matched_line="$pkg_line"
-                break  # stop at first match; remove break to collect multiple matches if needed
+                break
               fi
             done
       
