@@ -5,11 +5,11 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - prowlarr=1.35.1.5034-r0
+    - prowlarr=1.36.3.5071-r0
     - catatonit
     - tzdata
 work-dir: /config
-volumes: [ "/config" ]
+volumes: ["/config"]
 accounts:
   groups:
     - groupname: nonroot
@@ -29,7 +29,6 @@ environment:
   DOTNET_EnableDiagnostics: 0
   TZ: "Etc/UTC"
   UMASK: "0002"
-entrypoint: 
-  command:
-    catatonit -- Prowlarr
+entrypoint:
+  command: catatonit -- Prowlarr
 cmd: --nobrowser
