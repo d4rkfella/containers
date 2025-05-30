@@ -8,8 +8,8 @@ contents:
     - busybox
     - libcrypt1
     - libxcrypt
-    - keycloak-custom=26.2.4-r0
-    - keycloak-compat-custom=26.2.4-r0
+    - keycloak-custom=26.2.5-r0
+    - keycloak-compat-custom=26.2.5-r0
 accounts:
   groups:
     - groupname: nonroot
@@ -29,6 +29,5 @@ environment:
   KC_HEALTH_ENABLED: true
   KC_METRICS_ENABLED: true
   KC_DB: postgres
-entrypoint: 
-  command:
-    /opt/keycloak/bin/kc.sh
+entrypoint:
+  command: /opt/keycloak/bin/kc.sh
