@@ -5,13 +5,12 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - multus-cni=4.2.0-r3
-    - multus-cni-compat=4.2.0-r3
+    - multus-cni=4.2.1-r0
+    - multus-cni-compat=4.2.1-r0
 accounts:
   run-as: root:root
 environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-entrypoint: 
-  command:
-    /thin_entrypoint
+entrypoint:
+  command: /thin_entrypoint
