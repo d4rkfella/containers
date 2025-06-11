@@ -6,10 +6,10 @@ contents:
   packages:
     - wolfi-baselayout
     - catatonit
-    - jellyseerr=2.5.2-r0
+    - jellyseerr=2.6.0-r0
     - tzdata
 work-dir: /usr/lib/jellyseerr
-volumes: [ "/config" ]
+volumes: ["/config"]
 accounts:
   groups:
     - groupname: nonroot
@@ -25,6 +25,5 @@ environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
   NODE_ENV: production
-entrypoint: 
-  command:
-    catatonit -- node dist/index.js
+entrypoint:
+  command: catatonit -- node dist/index.js
