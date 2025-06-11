@@ -7,8 +7,8 @@ contents:
     - wolfi-baselayout
     - catatonit
     - tzdata
-    - jellyfin-custom=10.11.0-rc1-r0
-    - jellyfin-web-custom=10.11.0-rc1-r0
+    - jellyfin-custom=10.11.0-r0
+    - jellyfin-web-custom=10.11.0-r0
 volumes: ["/config", "/cache"]
 accounts:
   groups:
