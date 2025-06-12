@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - vault-backup=1.0.0-r0
+    - vault-backup=1.0.1-r0
 accounts:
   groups:
     - groupname: nonroot
@@ -20,6 +20,5 @@ accounts:
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-entrypoint: 
-  command:
-    vault-backup
+entrypoint:
+  command: vault-backup
