@@ -8,9 +8,9 @@ contents:
     - busybox
     - catatonit
     - tzdata
-    - qbit_manage=4.3.0-r0
+    - qbit_manage=4.4.0-r0
 work-dir: /usr/lib/qbitmanage/app
-volumes: [ "/config" ]
+volumes: ["/config"]
 accounts:
   groups:
     - groupname: nonroot
@@ -29,6 +29,5 @@ environment:
   PYTHONDONTWRITEBYTECODE: 1
   UMASK: "0002"
   TZ: "Etc/UTC"
-entrypoint: 
-  command:
-   catatonit -- python qbit_manage.py
+entrypoint:
+  command: catatonit -- python qbit_manage.py
