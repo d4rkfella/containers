@@ -5,12 +5,12 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - qbittorrent=5.1.0_p2011-r0
+    - qbittorrent=5.1.1_p2011-r0
     - cross-seed-search
     - tzdata
     - catatonit
 work-dir: /config
-volumes: [ "/config" ]
+volumes: ["/config"]
 accounts:
   groups:
     - groupname: nonroot
@@ -31,6 +31,5 @@ environment:
   HOME: "/config"
   XDG_CONFIG_HOME: "/config"
   XDG_DATA_HOME: "/config"
-entrypoint: 
-  command:
-    catatonit -- qbittorrent-init
+entrypoint:
+  command: catatonit -- qbittorrent-init
