@@ -8,8 +8,8 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - actions-runner-controller=0.12.0-r0
-    - actions-runner-controller-compat=0.12.0-r0
+    - actions-runner-controller=0.12.1-r0
+    - actions-runner-controller-compat=0.12.1-r0
 accounts:
   groups:
     - groupname: nonroot
