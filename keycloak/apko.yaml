@@ -24,7 +24,6 @@ accounts:
 environment:
   PATH: /usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  KC_CACHE_STACK: kubernetes
   KC_RUN_IN_CONTAINER: true
   KC_HEALTH_ENABLED: true
   KC_METRICS_ENABLED: true
