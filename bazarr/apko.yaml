@@ -7,10 +7,10 @@ contents:
     - wolfi-baselayout
     - catatonit
     - tzdata
-    - bazarr=1.5.2-r0
+    - bazarr=1.5.2-r1
     - mediainfo
 work-dir: /usr/lib/bazarr/app
-volumes: [ "/config" ]
+volumes: ["/config"]
 accounts:
   groups:
     - groupname: nonroot
@@ -29,7 +29,6 @@ environment:
   PYTHONDONTWRITEBYTECODE: 1
   UMASK: "0002"
   TZ: "Etc/UTC"
-entrypoint: 
-  command:
-   catatonit -- python bazarr.py
+entrypoint:
+  command: catatonit -- python bazarr.py
 cmd: --no-update --config /config
