@@ -5,12 +5,11 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - cni-plugins-install=1.0.2-r0
+    - cni-plugins-install=1.0.3-r0
 accounts:
   run-as: root:root
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-entrypoint: 
-  command:
-    cni-plugins-install
+entrypoint:
+  command: cni-plugins-install
