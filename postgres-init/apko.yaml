@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - postgres-init=0.1.0-r0
+    - postgres-init=0.1.0-r1
 accounts:
   groups:
     - groupname: nonroot
@@ -20,6 +20,5 @@ accounts:
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-entrypoint: 
-  command:
-    postgres-init
+entrypoint:
+  command: postgres-init
