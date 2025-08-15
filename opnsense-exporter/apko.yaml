@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - opnsense-exporter=0.0.10-r0
+    - opnsense-exporter=0.0.10-r1
     - tzdata
     - catatonit
 accounts:
