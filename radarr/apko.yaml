@@ -27,8 +27,7 @@ environment:
   XDG_CONFIG_HOME: /config
   DOTNET_RUNNING_IN_CONTAINER: true
   DOTNET_EnableDiagnostics: 0
-  TZ: "Etc/UTC"
-  UMASK: "0002"
+  RADARR__UPDATE__BRANCH: develop
 entrypoint:
   command: catatonit -- Radarr
 cmd: --nobrowser
