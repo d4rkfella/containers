@@ -27,8 +27,6 @@ environment:
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
   PYTHONUNBUFFERED: 1
   PYTHONDONTWRITEBYTECODE: 1
-  UMASK: "0002"
-  TZ: "Etc/UTC"
 entrypoint:
   command: catatonit -- python bazarr.py
 cmd: --no-update --config /config
