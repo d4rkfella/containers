@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - oidc-jwt-fetcher=1.1.0-r0
+    - oidc-jwt-fetcher=1.2.0-r0
 accounts:
   groups:
     - groupname: nonroot
