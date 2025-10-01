@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - postgres-init=0.1.0-r1
+    - postgres-init=0.1.0-r2
 accounts:
   groups:
     - groupname: nonroot
