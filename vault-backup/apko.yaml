@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - vault-backup=1.0.9-r0
+    - vault-backup=1.10.0-r0
 accounts:
   groups:
     - groupname: nonroot
