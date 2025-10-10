@@ -6,7 +6,7 @@ contents:
   packages:
     - wolfi-baselayout
     - tzdata
-    - sonarr=4.0.15.2941-r0
+    - sonarr=4.0.15.2941-r1
     - catatonit
 work-dir: /config
 volumes: ["/config"]
