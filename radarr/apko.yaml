@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - radarr=6.0.2.10271-r0
+    - radarr=6.0.3.10276-r0
     - catatonit
     - tzdata
 work-dir: /config
