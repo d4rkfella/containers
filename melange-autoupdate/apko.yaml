@@ -6,7 +6,7 @@ contents:
   packages:
     - wolfi-base
     - wolfi-baselayout
-    - melange-autoupdate=0.9.0-r0
+    - melange-autoupdate=1.0.0-r0
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
