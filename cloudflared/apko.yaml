@@ -6,7 +6,7 @@ contents:
   packages:
     - ca-certificates-bundle
     - wolfi-baselayout
-    - cloudflared=2025.10.0-r0
+    - cloudflared=2025.10.1-r0
 accounts:
   groups:
     - groupname: nonroot
