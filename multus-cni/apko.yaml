@@ -5,8 +5,8 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - multus-cni-custom=4.2.2-r3
-    - multus-cni-custom-compat=4.2.2-r3
+    - multus-cni-custom=4.2.3-r0
+    - multus-cni-custom-compat=4.2.3-r0
 accounts:
   run-as: root:root
 environment:
