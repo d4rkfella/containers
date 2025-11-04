@@ -8,7 +8,6 @@ contents:
     - catatonit
     - tzdata
     - bazarr=1.5.4-r1
-    - mediainfo
 work-dir: /usr/lib/bazarr/app
 volumes: ["/config"]
 accounts:
