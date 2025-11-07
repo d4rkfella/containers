@@ -5,7 +5,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - cni-plugins-install=1.0.3-r3
+    - cni-plugins-install=1.0.3-r0
 accounts:
   run-as: root:root
 environment:

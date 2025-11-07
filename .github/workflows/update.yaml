@@ -90,7 +90,7 @@ jobs:
 
           apk add yq curl coreutils
           
-          echo "https://packages.darkfellanetwork.com/artifactory/wolfi-os" >> /etc/apk/repositories
+          echo "https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main" >> /etc/apk/repositories
           curl -sL https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub -o /etc/apk/keys/melange.rsa.pub
           
           apk update
