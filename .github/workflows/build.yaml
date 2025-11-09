@@ -34,19 +34,24 @@ jobs:
         run: |
           echo "::group::Processing Push Event"
           changed_apko_files=$(git diff --name-only --diff-filter=AM ${{ github.event.before }} ${{ github.sha }} -- '**/apko.yaml' || true)
-
+      
           if [[ -n "$changed_apko_files" ]]; then
             echo "Changed/added apko.yaml files found:"
             echo "$changed_apko_files"
-            mapfile -t files_array < <(echo "$changed_apko_files")
-            for file_path in "${files_array[@]}"; do
+      
+            apps_list=""
+            while IFS= read -r file_path; do
               dir_name=$(dirname "$file_path" | sed 's|^\./||')
               if [[ -n "$dir_name" ]]; then
-                echo "apps_list<<EOF" >> "$GITHUB_OUTPUT"
-                echo "$dir_name" >> "$GITHUB_OUTPUT"
-                echo "EOF" >> "$GITHUB_OUTPUT"
+                apps_list+="${dir_name}"$'\n'
               fi
-            done
+            done <<< "$changed_apko_files"
+      
+            {
+              echo "apps_list<<EOF"
+              echo "$apps_list"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
           fi
           echo "::endgroup::"
 
