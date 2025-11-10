@@ -1,3 +1,8 @@
+annotations:
+  org.opencontainers.image.licenses: GPL-3.0-or-later
+  org.opencontainers.image.description: "Movie organizer/manager for usenet and torrent users."
+  org.opencontainers.image.documentation: https://wiki.servarr.com/en/radarr
+  org.opencontainers.image.source: https://github.com/Radarr/Radarr
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub

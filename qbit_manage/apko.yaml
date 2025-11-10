@@ -1,3 +1,8 @@
+annotations:
+  org.opencontainers.image.licenses: MIT
+  org.opencontainers.image.description: "This tool will help manage tedious tasks in qBittorrent and automate them. Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more."
+  org.opencontainers.image.documentation: https://github.com/StuffAnThings/qbit_manage/wiki
+  org.opencontainers.image.source: https://github.com/StuffAnThings/qbit_manage
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub

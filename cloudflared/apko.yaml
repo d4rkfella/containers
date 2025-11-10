@@ -1,6 +1,10 @@
+annotations:
+  org.opencontainers.image.licenses: Apache-2.0
+  org.opencontainers.image.description: "Cloudflare Tunnel client (formerly Argo Tunnel)"
+  org.opencontainers.image.documentation: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/
+  org.opencontainers.image.source: https://github.com/cloudflare/cloudflared
 contents:
   packages:
-    - ca-certificates-bundle
     - wolfi-baselayout
     - cloudflared=2025.11.1-r0
 accounts:

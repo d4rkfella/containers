@@ -1,6 +1,8 @@
 annotations:
-  org.opencontainers.image.title: "Actions Runner Controller"
-  org.opencontainers.image.description: "Kubernetes controller for GitHub Actions self-hosted runners"
+  org.opencontainers.image.licenses: Apache-2.0
+  org.opencontainers.image.description: "Kubernetes controller for GitHub Actions self-hosted runners."
+  org.opencontainers.image.documentation: https://docs.github.com/en/actions/concepts/runners/actions-runner-controller
+  org.opencontainers.image.source: https://github.com/actions/actions-runner-controller
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub

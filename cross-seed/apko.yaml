@@ -1,3 +1,8 @@
+annotations:
+  org.opencontainers.image.licenses: Apache-2.0
+  org.opencontainers.image.description: "Fully-automatic cross-seeding with Torznab."
+  org.opencontainers.image.documentation: https://www.cross-seed.org/docs/basics/getting-started
+  org.opencontainers.image.source: https://github.com/cross-seed/cross-seed
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub

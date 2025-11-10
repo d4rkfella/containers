@@ -1,3 +1,8 @@
+annotations:
+  org.opencontainers.image.licenses: GPL-2.0-or-later
+  org.opencontainers.image.description: "qBittorrent BitTorrent client."
+  org.opencontainers.image.documentation: https://github.com/qbittorrent/qBittorrent/wiki
+  org.opencontainers.image.source: https://github.com/qbittorrent/qBittorrent
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub

@@ -1,3 +1,8 @@
+annotations:
+  org.opencontainers.image.licenses: GPL-3.0-or-later
+  org.opencontainers.image.description: "Prowlarr is an indexer manager/proxy built on the popular *arr .net/reactjs base stack to integrate with your various PVR apps, supporting management of both Torrent Trackers and Usenet Indexers."
+  org.opencontainers.image.documentation: https://wiki.servarr.com/en/prowlarr
+  org.opencontainers.image.source: https://github.com/Prowlarr/Prowlarr
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub

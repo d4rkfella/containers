@@ -1,3 +1,8 @@
+annotations:
+  org.opencontainers.image.licenses: GPL-2.0-or-later
+  org.opencontainers.image.description: "Modern, easy to use download automation for torrents and usenet."
+  org.opencontainers.image.documentation: https://autobrr.com/quick-start
+  org.opencontainers.image.source: https://github.com/autobrr/autobrr
 contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
