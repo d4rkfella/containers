@@ -240,12 +240,6 @@ jobs:
         run: |
           docker load < wolfi-sdk.tar
 
-      - name: Generate snapshot date
-        id: snapshot-date
-        shell: bash
-        run: |
-          echo "epoch=$(date -u +%s)" >> $GITHUB_OUTPUT
-
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -254,14 +248,13 @@ jobs:
         id: apko
         with:
           config: ${{ matrix.name }}/apko.yaml
-          source-date-epoch: ${{ steps.snapshot-date.outputs.epoch }}
           additional-tags: ${{ matrix.full_version }},${{ matrix.major_version }},${{ matrix.major_minor_version }}
           archs: amd64,arm64
           slsa-attest: "true"
           sbom-attest: "true"
           build-repository-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
           keyring-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
-          annotations: "org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
+          annotations: "org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/containers/pkgs/container/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
           base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 
       - name: Create success marker
