@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - qbittorrent=5.1.2_p2011-r0
+    - qbittorrent=5.1.3_p2011-r0
     - qbit-notifier
     - qbit-init
     - tzdata
