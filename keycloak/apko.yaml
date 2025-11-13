@@ -13,7 +13,7 @@ contents:
     - busybox
     - libcrypt1
     - libxcrypt
-    - keycloak-darkfellanet=26.4.4-r0
+    - keycloak-darkfellanet=26.4.5-r0
     - keycloak-darkfellanet-compat=26.4.4-r0
 accounts:
   groups:
