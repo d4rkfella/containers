@@ -13,8 +13,8 @@ contents:
     - busybox
     - libcrypt1
     - libxcrypt
-    - keycloak-darkfellanet=26.4.5-r1
-    - keycloak-darkfellanet-compat=26.4.5-r1
+    - keycloak-darkfellanet=26.4.6-r0
+    - keycloak-darkfellanet-compat=26.4.6-r0
 accounts:
   groups:
     - groupname: nonroot
