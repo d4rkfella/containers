@@ -5,11 +5,31 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - cni-plugins-install=1.0.3-r1
+    - rsync
+    - cni-plugins=1.8.0-r4
+    - cni-plugins-bandwidth-compat=1.8.0-r4
+    - cni-plugins-bridge-compat=1.8.0-r4
+    - cni-plugins-dhcp-compat=1.8.0-r4
+    - cni-plugins-dummy-compat=1.8.0-r4
+    - cni-plugins-firewall-compat=1.8.0-r4
+    - cni-plugins-host-device-compat=1.8.0-r4
+    - cni-plugins-host-local-compat=1.8.0-r4
+    - cni-plugins-ipvlan-compat=1.8.0-r4
+    - cni-plugins-loopback-compat=1.8.0-r4
+    - cni-plugins-macvlan-compat=1.8.0-r4
+    - cni-plugins-portmap-compat=1.8.0-r4
+    - cni-plugins-ptp-compat=1.8.0-r4
+    - cni-plugins-sbr-compat=1.8.0-r4
+    - cni-plugins-static-compat=1.8.0-r4
+    - cni-plugins-tap-compat=1.8.0-r4
+    - cni-plugins-tuning-compat=1.8.0-r4
+    - cni-plugins-vlan-compat=1.8.0-r4
+    - cni-plugins-vrf-compat=1.8.0-r4
 accounts:
   run-as: root:root
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  CNI_BIN_DIR: /host/opt/cni/bin
 entrypoint:
-  command: cni-plugins-install
+  command: rsync -av /opt/cni/bin/ $CNI_BIN_DIR
