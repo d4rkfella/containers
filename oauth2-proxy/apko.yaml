@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - oauth2-proxy-darkfellanet=7.13.0-r0
+    - oauth2-proxy-darkfellanet=7.13.0-r1
 accounts:
   groups:
     - groupname: nonroot
