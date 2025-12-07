@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - autobrr=1.70.0-r0
+    - autobrr=1.70.0-r1
     - catatonit
     - tzdata
 work-dir: /config
