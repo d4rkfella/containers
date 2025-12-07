@@ -6,7 +6,6 @@ contents:
   packages:
     - wolfi-baselayout
     - rsync
-    - cni-plugins=1.8.0-r4
     - cni-plugins-bandwidth-compat=1.8.0-r4
     - cni-plugins-bridge-compat=1.8.0-r4
     - cni-plugins-dhcp-compat=1.8.0-r4
