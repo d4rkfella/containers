@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - oauth2-proxy=7.13.0-r2
+    - oauth2-proxy=7.13.0-r3
 accounts:
   groups:
     - groupname: nonroot
