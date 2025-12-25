@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - cross-seed=6.13.6-r0
+    - cross-seed=6.13.6-r1
     - catatonit
     - tzdata
 work-dir: /usr/lib/cross-seed
