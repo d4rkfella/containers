@@ -29,6 +29,5 @@ accounts:
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  CNI_BIN_DIR: /host/opt/cni/bin
 entrypoint:
-  command: rsync -avL /opt/cni/bin/ $CNI_BIN_DIR
+  command: rsync -avL /opt/cni/bin/ /host/opt/cni/bin
