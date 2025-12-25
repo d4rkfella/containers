@@ -252,8 +252,8 @@ jobs:
           archs: amd64,arm64
           slsa-attest: "true"
           sbom-attest: "true"
-          build-repository-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
-          keyring-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
+          #build-repository-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
+          #keyring-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
           annotations: "org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/containers/pkgs/container/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
           base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 
