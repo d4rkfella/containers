@@ -11,9 +11,9 @@ contents:
   packages:
     - wolfi-baselayout
     - catatonit
-    - jellyseerr=2.7.3-r1
+    - seerr=2.7.3-r0
     - tzdata
-work-dir: /usr/lib/jellyseerr
+work-dir: /usr/lib/seerr
 volumes: ["/config"]
 accounts:
   groups:
