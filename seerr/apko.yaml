@@ -11,7 +11,7 @@ contents:
   packages:
     - wolfi-baselayout
     - catatonit
-    - seerr=2.7.3-r3
+    - seerr=2.7.3-r4
     - tzdata
 work-dir: /usr/lib/seerr
 volumes: ["/config"]
