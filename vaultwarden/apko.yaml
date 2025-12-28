@@ -8,7 +8,7 @@ contents:
   repositories:
     - https://packages.wolfi.dev/os
   packages:
-    - vaultwarden=1.34.3-r1
+    - vaultwarden=1.35.0-r0
 work-dir: /
 volumes: ["/data"]
 accounts:
