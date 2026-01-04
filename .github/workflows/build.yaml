@@ -79,49 +79,34 @@ jobs:
         run: |
           set -eo pipefail
           echo "::group::Determine Container version"
-      
+
           mapfile -t apps_list < <(echo "${{ steps.push_event.outputs.apps_list }}${{ steps.workflow_dispatch.outputs.apps_list }}" | grep -v '^$' | sort -u)
-      
+
           declare -a apps_list_with_versions=()
-      
+
           for app in "${apps_list[@]}"; do
             echo "::group::Processing $app"
-      
-            APKO_FILE="${app}/apko.yaml"      
-            
-            mapfile -t packages < <(yq '.contents.packages[]' "$APKO_FILE")
-      
-            matched_line=""
-            for pkg_line in "${packages[@]}"; do
-              pkg_name="${pkg_line%%=*}"
-      
-              if [[ "$app" == *"$pkg_name"* ]] || [[ "$pkg_name" == *"$app"* ]]; then
-                matched_line="$pkg_line"
-                break
-              fi
-            done
-      
-            if [[ -z "$matched_line" ]]; then
-              echo "Warning: No matching package found for $app in $APKO_FILE. Skipping."
-              echo "::endgroup::"
-              continue
+
+            METADATA_FILE="${app}/metadata.yaml"
+            APKO_FILE="${app}/apko.yaml"
+
+            VERSION=""
+            if [[ -f "$METADATA_FILE" ]]; then
+              VERSION=$(yq -r '.version // ""' "$METADATA_FILE")
             fi
-      
-            PACKAGE_VERSION=$(echo "$matched_line" | cut -d= -f2)
-            VERSION=$(echo "$PACKAGE_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
-      
+
             if [[ -z "$VERSION" ]]; then
-              echo "Warning: Could not extract semantic version from '$PACKAGE_VERSION'. Skipping."
+              echo "Warning: No metadata version found for $app. Skipping."
               echo "::endgroup::"
               continue
             fi
-      
+
             echo "Found version $VERSION for app $app"
             apps_list_with_versions+=("$app,$VERSION")
-      
             echo "::endgroup::"
           done
-      
+
+          # Output the versions for the matrix
           if [ "${#apps_list_with_versions[@]}" -eq 0 ]; then
             echo "apps_list_with_versions=" >> "$GITHUB_OUTPUT"
           else
@@ -129,7 +114,7 @@ jobs:
             printf "%s\n" "${apps_list_with_versions[@]}" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
           fi
-      
+
           echo "::endgroup::"
       
       - name: Generate Build Matrix
