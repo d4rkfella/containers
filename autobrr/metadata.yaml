@@ -1,0 +1,3 @@
+version: 1.71.0
+main_packages:
+  - autobrr

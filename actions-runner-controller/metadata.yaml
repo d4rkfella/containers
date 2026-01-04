@@ -1,0 +1,4 @@
+version: 0.13.1
+main_packages:
+  - actions-runner-controller
+  - actions-runner-controller-compat

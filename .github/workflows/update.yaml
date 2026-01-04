@@ -102,11 +102,13 @@ jobs:
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
           echo "latest_version=" >> "$GITHUB_OUTPUT"
 
+          # Check if metadata.yaml exists
           if [ ! -f "$METADATA_FILE" ]; then
             echo "⚠️  No metadata.yaml found for $APP_NAME"
             exit 0
           fi
 
+          # Read main_packages from metadata.yaml
           MAIN_PACKAGES=$(yq e '.main_packages[]' "$METADATA_FILE" 2>/dev/null || echo "")
           if [ -z "$MAIN_PACKAGES" ]; then
             echo "ℹ️ No main_packages defined in $METADATA_FILE"
@@ -116,6 +118,7 @@ jobs:
           echo "📦 Main packages to check:"
           echo "$MAIN_PACKAGES"
 
+          # Create temp files
           TMP_UPDATES=$(mktemp)
           TMP_VERSIONS=$(mktemp)
           TMP_COUNT=$(mktemp)
@@ -123,6 +126,7 @@ jobs:
           TMP_CHECKED=$(mktemp)
           echo "0" > "$TMP_CHECKED"
 
+          # Process each main package
           echo "$MAIN_PACKAGES" | while read -r MAIN_PKG; do
             if [ -z "$MAIN_PKG" ]; then
               continue
@@ -183,21 +187,32 @@ jobs:
             echo "::endgroup::"
           done
 
+          # Get final counts
           UPDATED_COUNT=$(cat "$TMP_COUNT")
           CHECKED_COUNT=$(cat "$TMP_CHECKED")
 
+          # Get the most recent version for PR title and metadata update
           if [ -s "$TMP_VERSIONS" ]; then
             LATEST_VERSION=$(sort -Vr "$TMP_VERSIONS" | head -n1)
             echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
             
+            # Extract semantic version (x.y.z) from the full version string
             SEMANTIC_VERSION=$(echo "$LATEST_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "$LATEST_VERSION")
             
+            # Update metadata.yaml only if the semantic version changed
             if [ "$UPDATED_COUNT" -gt 0 ]; then
-              echo "📝 Updating metadata.yaml version to $SEMANTIC_VERSION"
-              yq e ".version = \"$SEMANTIC_VERSION\"" -i "$METADATA_FILE"
+              CURRENT_METADATA_VERSION=$(yq e '.version' "$METADATA_FILE")
+              
+              if [ "$CURRENT_METADATA_VERSION" != "$SEMANTIC_VERSION" ]; then
+                echo "📝 Updating metadata.yaml version: $CURRENT_METADATA_VERSION → $SEMANTIC_VERSION"
+                yq e ".version = \"$SEMANTIC_VERSION\"" -i "$METADATA_FILE"
+              else
+                echo "ℹ️  Semantic version unchanged ($SEMANTIC_VERSION), skipping metadata.yaml update"
+              fi
             fi
           fi
 
+          # Output results
           if [ "$UPDATED_COUNT" -gt 0 ]; then
             echo "✅ Updated $UPDATED_COUNT/$CHECKED_COUNT main packages:"
             cat "$TMP_UPDATES"
@@ -207,7 +222,7 @@ jobs:
           elif [ "$CHECKED_COUNT" -gt 0 ]; then
             echo "✅ All main packages are up-to-date"
           else
-            echo "ℹ️ No main packages were found in the apko configuration."
+            echo "ℹ️ No main packages were checked"
           fi
 
           rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT" "$TMP_CHECKED"

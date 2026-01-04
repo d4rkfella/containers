@@ -1,0 +1,3 @@
+version: 6.13.6
+main_packages:
+  - cross-seed

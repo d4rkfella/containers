@@ -1,0 +1,20 @@
+version: 1.9.0
+main_packages:
+  - cni-plugins-bandwidth-compat
+  - cni-plugins-bridge-compat
+  - cni-plugins-dhcp-compat
+  - cni-plugins-dummy-compat
+  - cni-plugins-firewall-compat
+  - cni-plugins-host-device-compat
+  - cni-plugins-host-local-compat
+  - cni-plugins-ipvlan-compat
+  - cni-plugins-loopback-compat
+  - cni-plugins-macvlan-compat
+  - cni-plugins-portmap-compat
+  - cni-plugins-ptp-compat
+  - cni-plugins-sbr-compat
+  - cni-plugins-static-compat
+  - cni-plugins-tap-compat
+  - cni-plugins-tuning-compat
+  - cni-plugins-vlan-compat
+  - cni-plugins-vrf-compat

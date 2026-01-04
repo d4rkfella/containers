@@ -1,0 +1,3 @@
+version: 2.7.3
+main_packages:
+  - seerr
