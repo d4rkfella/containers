@@ -14,7 +14,7 @@ contents:
     - libcrypt1
     - libxcrypt
     - keycloak-spi-trusted-device
-    - keycloak-darkfellanet=26.4.7-r1
+    - keycloak-darkfellanet=26.4.7-r2
     - keycloak-darkfellanet-compat=26.4.7-r2
 accounts:
   groups:
