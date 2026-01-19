@@ -172,7 +172,7 @@ jobs:
 
       - name: Restore Wolfi SDK
         id: sdk-restore
-        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
@@ -186,7 +186,7 @@ jobs:
 
       - name: Cache Wolfi SDK
         if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/save@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
@@ -216,7 +216,7 @@ jobs:
         run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Restore Wolfi SDK
-        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
         with:
           key: wolfi-sdk-${{ steps.cache.outputs.key }}
           path: wolfi-sdk.tar
