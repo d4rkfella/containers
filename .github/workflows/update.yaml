@@ -253,7 +253,7 @@ jobs:
           add-paths: |
             ${{ matrix.name }}/apko.yaml
             ${{ matrix.name }}/metadata.yaml
-          branch: 'update-${{ matrix.name }}-${{ steps.check_update.outputs.latest_version }}'
+          branch: 'update-${{ matrix.name }}'
           commit-message: 'Update ${{ matrix.name }} to ${{ steps.check_update.outputs.latest_version }}'
           delete-branch: true
           sign-commits: true
