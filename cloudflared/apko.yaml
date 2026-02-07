@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - cloudflared=2026.1.2-r1
+    - cloudflared=2026.2.0-r0
 accounts:
   groups:
     - groupname: nonroot
