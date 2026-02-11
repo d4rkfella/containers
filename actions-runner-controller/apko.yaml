@@ -10,8 +10,8 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - actions-runner-controller=0.13.1-r1
-    - actions-runner-controller-compat=0.13.1-r1
+    - actions-runner-controller=0.13.1-r2
+    - actions-runner-controller-compat=0.13.1-r2
 accounts:
   groups:
     - groupname: nonroot
