@@ -13,7 +13,7 @@ contents:
     - busybox
     - catatonit
     - tzdata
-    - qbit_manage=4.6.5-r1
+    - qbit_manage=4.6.5-r2
 work-dir: /usr/lib/qbitmanage/app
 volumes: ["/config"]
 accounts:
