@@ -6,24 +6,24 @@ contents:
   packages:
     - wolfi-baselayout
     - rsync
-    - cni-plugins-bandwidth-compat=1.9.1-r0
-    - cni-plugins-bridge-compat=1.9.1-r0
-    - cni-plugins-dhcp-compat=1.9.1-r0
-    - cni-plugins-dummy-compat=1.9.1-r0
-    - cni-plugins-firewall-compat=1.9.1-r0
-    - cni-plugins-host-device-compat=1.9.1-r0
-    - cni-plugins-host-local-compat=1.9.1-r0
-    - cni-plugins-ipvlan-compat=1.9.1-r0
-    - cni-plugins-loopback-compat=1.9.1-r0
-    - cni-plugins-macvlan-compat=1.9.1-r0
-    - cni-plugins-portmap-compat=1.9.1-r0
-    - cni-plugins-ptp-compat=1.9.1-r0
-    - cni-plugins-sbr-compat=1.9.1-r0
-    - cni-plugins-static-compat=1.9.1-r0
-    - cni-plugins-tap-compat=1.9.1-r0
-    - cni-plugins-tuning-compat=1.9.1-r0
-    - cni-plugins-vlan-compat=1.9.1-r0
-    - cni-plugins-vrf-compat=1.9.1-r0
+    - cni-plugins-bandwidth-compat=1.9.1-r1
+    - cni-plugins-bridge-compat=1.9.1-r1
+    - cni-plugins-dhcp-compat=1.9.1-r1
+    - cni-plugins-dummy-compat=1.9.1-r1
+    - cni-plugins-firewall-compat=1.9.1-r1
+    - cni-plugins-host-device-compat=1.9.1-r1
+    - cni-plugins-host-local-compat=1.9.1-r1
+    - cni-plugins-ipvlan-compat=1.9.1-r1
+    - cni-plugins-loopback-compat=1.9.1-r1
+    - cni-plugins-macvlan-compat=1.9.1-r1
+    - cni-plugins-portmap-compat=1.9.1-r1
+    - cni-plugins-ptp-compat=1.9.1-r1
+    - cni-plugins-sbr-compat=1.9.1-r1
+    - cni-plugins-static-compat=1.9.1-r1
+    - cni-plugins-tap-compat=1.9.1-r1
+    - cni-plugins-tuning-compat=1.9.1-r1
+    - cni-plugins-vlan-compat=1.9.1-r1
+    - cni-plugins-vrf-compat=1.9.1-r1
 accounts:
   run-as: root:root
 environment:
