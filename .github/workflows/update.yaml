@@ -36,7 +36,7 @@ jobs:
 
       - name: Restore Wolfi Base Image
         id: image-restore
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           key: wolfi-base-${{ steps.cache.outputs.key }}
           path: wolfi-base.tar
@@ -49,7 +49,7 @@ jobs:
 
       - name: Cache Wolfi Base Image
         if: ${{ always() && steps.image-restore.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           key: wolfi-base-${{ steps.cache.outputs.key }}
           path: wolfi-base.tar
@@ -70,7 +70,7 @@ jobs:
         run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
       
       - name: Restore Wolfi Base
-        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           key: wolfi-base-${{ steps.cache.outputs.key }}
           path: wolfi-base.tar
