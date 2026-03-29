@@ -115,13 +115,13 @@ jobs:
             for ARCH in "${ARCH_LIST[@]}"; do
               ARCH=$(echo "$ARCH" | xargs)
 
-              LATEST_FULL=$(apk.static --root "${{ steps.apk.outputs.apk-root }}" --arch "$ARCH" search --exact "$PACKAGE_NAME" 2>/tmp/apk_err)
+              LATEST_FULL=$(apk.static --root "${{ steps.apk.outputs.apk-root }}" --arch "$ARCH" search --exact "$PACKAGE_NAME" 2>/tmp/apk_err || true)
               APK_STDERR=$(grep -v 'WARNING: This apk-tools is OLD' /tmp/apk_err || true)
               LATEST_FULL=$(echo "$LATEST_FULL" | head -n1)
               ARCH_VERSION=$(echo "$LATEST_FULL" | sed "s/^${PACKAGE_NAME}-//" || true)
               
               if [ -z "$ARCH_VERSION" ]; then
-                if [ -n "$APK_ERR" ]; then
+                if [ -n "$APK_STDERR" ]; then
                   echo "⚠️  Could not resolve latest version for $PACKAGE_NAME on $ARCH: $APK_STDERR"
                 else
                   echo "⚠️  Could not resolve latest version for $PACKAGE_NAME on $ARCH: package not found in index"
