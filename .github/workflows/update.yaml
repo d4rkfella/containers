@@ -153,18 +153,22 @@ jobs:
             NEW_MAJOR=$(semver_part "$NEW_MAIN_VERSION" 1)
             OLD_MINOR=$(semver_part "$CURRENT_MAIN_VERSION" 2)
             NEW_MINOR=$(semver_part "$NEW_MAIN_VERSION" 2)
+            OLD_PATCH=$(semver_part "$CURRENT_MAIN_VERSION" 3)
+            NEW_PATCH=$(semver_part "$NEW_MAIN_VERSION" 3)
+
+            DISPLAY_VERSION=$(echo "$NEW_MAIN_VERSION" | sed 's/-r[0-9]*$//')
+
+            yq e ".version = \"${DISPLAY_VERSION}\"" -i "$METADATA_FILE"
 
             if [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then
               COMMIT_TYPE="feat!"
             elif [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
               COMMIT_TYPE="feat"
-            else
+            elif [ "$NEW_PATCH" != "$OLD_PATCH" ]; then
               COMMIT_TYPE="fix"
+            else
+              COMMIT_TYPE="chore"
             fi
-
-            DISPLAY_VERSION=$(echo "$NEW_MAIN_VERSION" | sed 's/-r[0-9]*$//')
-
-            yq e ".version = \"${DISPLAY_VERSION}\"" -i "$METADATA_FILE"
 
             COMMIT_TITLE="${COMMIT_TYPE}(${APP_NAME}): bump to ${DISPLAY_VERSION}"
           else
