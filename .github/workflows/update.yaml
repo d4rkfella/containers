@@ -2,6 +2,11 @@ name: Check for Package Updates
 
 on:
   workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Comma-separated list of architectures to validate against'
+        required: false
+        default: 'x86_64,aarch64'
   schedule:
     - cron: '0 0 * * *' # Run daily at midnight
 
@@ -49,6 +54,7 @@ jobs:
           keys: |
             https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
+          arch: ${{ github.event.inputs.arch || 'x86_64,aarch64' }}
 
       - name: Install yq
         run: |
@@ -63,6 +69,7 @@ jobs:
           IMAGE_NAME="${{ matrix.name }}"
           APKO_FILE="${IMAGE_NAME}/apko.yaml"
           METADATA_FILE="${IMAGE_NAME}/metadata.yaml"
+          ARCHES="${{ github.event.inputs.arch || 'x86_64,aarch64' }}"
 
           echo "file_modified=false"  >> "$GITHUB_OUTPUT"
           echo "commit_title="        >> "$GITHUB_OUTPUT"
@@ -101,11 +108,35 @@ jobs:
 
             echo "::group::Checking $PACKAGE_NAME"
 
-            LATEST_FULL=$(apk.static --root "${{ steps.apk.outputs.apk-root }}" --arch x86_64 search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
-            LATEST_VERSION=$(echo "$LATEST_FULL" | sed "s/^${PACKAGE_NAME}-//" || true)
+            LATEST_VERSION=""
+            SKIP_PACKAGE=false
 
-            if [ -z "$LATEST_VERSION" ]; then
-              echo "⚠️  Could not resolve latest version for $PACKAGE_NAME"
+            IFS=',' read -ra ARCH_LIST <<< "$ARCHES"
+            for ARCH in "${ARCH_LIST[@]}"; do
+              ARCH=$(echo "$ARCH" | xargs)
+
+              LATEST_FULL=$(apk.static --root "${{ steps.apk.outputs.apk-root }}" --arch "$ARCH" search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
+              ARCH_VERSION=$(echo "$LATEST_FULL" | sed "s/^${PACKAGE_NAME}-//" || true)
+
+              if [ -z "$ARCH_VERSION" ]; then
+                echo "⚠️  Could not resolve latest version for $PACKAGE_NAME on $ARCH"
+                SKIP_PACKAGE=true
+                break
+              fi
+
+              echo "  [$ARCH] latest: $ARCH_VERSION"
+
+              if [ -z "$LATEST_VERSION" ]; then
+                LATEST_VERSION="$ARCH_VERSION"
+              elif [ "$ARCH_VERSION" != "$LATEST_VERSION" ]; then
+                echo "⚠️  Version mismatch across arches for $PACKAGE_NAME: $LATEST_VERSION (${{'{' }}ARCH_LIST[0]}) vs $ARCH_VERSION ($ARCH)"
+                SKIP_PACKAGE=true
+                break
+              fi
+            done
+
+            if [ "$SKIP_PACKAGE" = "true" ]; then
+              echo "⏭️  Skipping $PACKAGE_NAME"
               echo "::endgroup::"
               continue
             fi
@@ -168,7 +199,7 @@ jobs:
               COMMIT_TYPE="chore"
             fi
 
-            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): ${CURRENT_VERSION} → ${NEW_MAIN_VERSION}"
+            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): ${CURRENT_MAIN_VERSION} → ${NEW_MAIN_VERSION}"
           else
             COMMIT_TITLE="chore(${IMAGE_NAME}): bump dependencies"
           fi
