@@ -8,7 +8,7 @@ on:
         required: false
         default: 'x86_64,aarch64'
   schedule:
-    - cron: '0 0 * * *' # Run daily at midnight
+    - cron: '0 0 * * *'
 
 jobs:
   prepare_matrix:
@@ -21,17 +21,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Generate Matrix
+      - name: Generate matrix
         id: generate
-        run: |
-          APP_LIST=$(find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \; | sed 's|^\./||' | sort -u)
-          MATRIX_JSON=$(echo "$APP_LIST" | jq -R -s --compact-output 'split("\n") | map(select(length > 0)) | {include: map({name: .})}')
-          echo "Generated matrix (compact):"
-          echo "$MATRIX_JSON"
-          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            const dirs = execSync(
+              `find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \\;`,
+              { encoding: 'utf8' }
+            )
+              .trim()
+              .split('\n')
+              .filter(Boolean)
+              .map(d => d.replace(/^\.\//, ''))
+              .sort();
+
+            const matrix = JSON.stringify({ include: dirs.map(name => ({ name })) });
+            core.info(`Generated matrix: ${matrix}`);
+            core.setOutput('matrix', matrix);
 
   check_and_update_package:
-    needs: [prepare_matrix]
+    needs: prepare_matrix
     runs-on: ubuntu-24.04
     if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     strategy:
@@ -56,24 +68,21 @@ jobs:
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
           arch: ${{ github.event.inputs.arch || 'x86_64,aarch64' }}
 
-      - name: Install yq
-        run: |
-          curl --retry 3 -fsSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
-
       - name: Check and update packages
         id: check_update
+        env:
+          IMAGE_NAME: ${{ matrix.name }}
+          ARCHES: ${{ github.event.inputs.arch || 'x86_64,aarch64' }}
+          APK_ROOT: ${{ steps.apk.outputs.apk-root }}
         run: |
           set -euo pipefail
 
-          IMAGE_NAME="${{ matrix.name }}"
           APKO_FILE="${IMAGE_NAME}/apko.yaml"
           METADATA_FILE="${IMAGE_NAME}/metadata.yaml"
-          ARCHES="${{ github.event.inputs.arch || 'x86_64,aarch64' }}"
 
-          echo "file_modified=false"  >> "$GITHUB_OUTPUT"
-          echo "commit_title="        >> "$GITHUB_OUTPUT"
-          echo "commit_body="         >> "$GITHUB_OUTPUT"
+          echo "file_modified=false" >> "$GITHUB_OUTPUT"
+          echo "commit_title="       >> "$GITHUB_OUTPUT"
+          echo "commit_body="        >> "$GITHUB_OUTPUT"
 
           if [ ! -f "$METADATA_FILE" ]; then
             echo "⚠️  No metadata.yaml found for $IMAGE_NAME"
@@ -87,7 +96,7 @@ jobs:
           fi
 
           CURRENT_MAIN_VERSION=$(yq e '.version' "$METADATA_FILE" 2>/dev/null || echo "")
-          CURRENT_MAIN_PKG_VERSION=$(yq e '.contents.packages[] | select(test("^'"$MAIN_PKG"'="))' "$APKO_FILE" 2>/dev/null | cut -d= -f2 || echo "")
+          CURRENT_MAIN_PKG_VERSION=$(yq e ".contents.packages[] | select(test(\"^${MAIN_PKG}=\"))" "$APKO_FILE" 2>/dev/null | cut -d= -f2 || echo "")
 
           PINNED_PACKAGES=$(yq e '.contents.packages[] | select(test("="))' "$APKO_FILE" 2>/dev/null || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
@@ -104,8 +113,8 @@ jobs:
           while IFS= read -r PIN; do
             [ -z "$PIN" ] && continue
 
-            PACKAGE_NAME=$(echo "$PIN" | cut -d= -f1)
-            CURRENT_VERSION=$(echo "$PIN" | cut -d= -f2)
+            PACKAGE_NAME="${PIN%%=*}"
+            CURRENT_VERSION="${PIN#*=}"
 
             echo "::group::Checking $PACKAGE_NAME"
 
@@ -114,13 +123,17 @@ jobs:
 
             IFS=',' read -ra ARCH_LIST <<< "$ARCHES"
             for ARCH in "${ARCH_LIST[@]}"; do
-              ARCH=$(echo "$ARCH" | xargs)
+              ARCH="${ARCH// /}"  # trim whitespace
 
-              LATEST_FULL=$(apk.static --root "${{ steps.apk.outputs.apk-root }}" --arch "$ARCH" search --exact "$PACKAGE_NAME" 2>/tmp/apk_err || true)
+              LATEST_FULL=$(apk.static \
+                --root "$APK_ROOT" \
+                --arch "$ARCH" \
+                search --exact "$PACKAGE_NAME" 2>/tmp/apk_err || true)
+
               APK_STDERR=$(grep -v 'WARNING: This apk-tools is OLD' /tmp/apk_err || true)
               LATEST_FULL=$(echo "$LATEST_FULL" | head -n1)
-              ARCH_VERSION=$(echo "$LATEST_FULL" | sed "s/^${PACKAGE_NAME}-//" || true)
-              
+              ARCH_VERSION="${LATEST_FULL#"${PACKAGE_NAME}-"}"
+
               if [ -z "$ARCH_VERSION" ]; then
                 if [ -n "$APK_STDERR" ]; then
                   echo "⚠️  Could not resolve latest version for $PACKAGE_NAME on $ARCH: $APK_STDERR"
@@ -136,7 +149,8 @@ jobs:
               if [ -z "$LATEST_VERSION" ]; then
                 LATEST_VERSION="$ARCH_VERSION"
               elif [ "$ARCH_VERSION" != "$LATEST_VERSION" ]; then
-                echo "⚠️  Version mismatch across arches for $PACKAGE_NAME: $LATEST_VERSION (${{'{' }}ARCH_LIST[0]}) vs $ARCH_VERSION ($ARCH)"
+                FIRST_ARCH="${ARCH_LIST[0]// /}"
+                echo "⚠️  Version mismatch across arches for $PACKAGE_NAME: $LATEST_VERSION ($FIRST_ARCH) vs $ARCH_VERSION ($ARCH)"
                 SKIP_PACKAGE=true
                 break
               fi
@@ -153,7 +167,8 @@ jobs:
             case "$COMPARE" in
               "<")
                 echo "🔄 $PACKAGE_NAME: $CURRENT_VERSION → $LATEST_VERSION"
-                yq e "(.contents.packages[] | select(. == \"${PACKAGE_NAME}=${CURRENT_VERSION}\")) = \"${PACKAGE_NAME}=${LATEST_VERSION}\"" -i "$APKO_FILE"
+                yq e "(.contents.packages[] | select(. == \"${PACKAGE_NAME}=${CURRENT_VERSION}\")) = \"${PACKAGE_NAME}=${LATEST_VERSION}\"" \
+                  -i "$APKO_FILE"
                 UPDATED_LINES="${UPDATED_LINES}- ${PACKAGE_NAME}: ${CURRENT_VERSION} → ${LATEST_VERSION}\n"
                 if [ "$PACKAGE_NAME" = "$MAIN_PKG" ]; then
                   NEW_MAIN_VERSION="$LATEST_VERSION"
@@ -166,7 +181,7 @@ jobs:
                 echo "⚠️  $PACKAGE_NAME current ($CURRENT_VERSION) is newer than available ($LATEST_VERSION)"
                 ;;
               *)
-                echo "⚠️  Invalid comparison result for $PACKAGE_NAME"
+                echo "⚠️  Unexpected comparison result '$COMPARE' for $PACKAGE_NAME"
                 ;;
             esac
 
@@ -180,30 +195,24 @@ jobs:
 
           echo "file_modified=true" >> "$GITHUB_OUTPUT"
 
-          semver_part() {
-            echo "$1" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' | cut -d. -f"$2"
-          }
+          # ── Determine commit type from semver bump ───────────────────────────
+          semver_part() { echo "$1" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' | cut -d. -f"$2"; }
 
           if [ -n "$NEW_MAIN_VERSION" ] && [ -n "$CURRENT_MAIN_VERSION" ]; then
             OLD_MAJOR=$(semver_part "$CURRENT_MAIN_VERSION" 1)
-            NEW_MAJOR=$(semver_part "$NEW_MAIN_VERSION" 1)
+            NEW_MAJOR=$(semver_part "$NEW_MAIN_VERSION"     1)
             OLD_MINOR=$(semver_part "$CURRENT_MAIN_VERSION" 2)
-            NEW_MINOR=$(semver_part "$NEW_MAIN_VERSION" 2)
+            NEW_MINOR=$(semver_part "$NEW_MAIN_VERSION"     2)
             OLD_PATCH=$(semver_part "$CURRENT_MAIN_VERSION" 3)
-            NEW_PATCH=$(semver_part "$NEW_MAIN_VERSION" 3)
+            NEW_PATCH=$(semver_part "$NEW_MAIN_VERSION"     3)
 
-            DISPLAY_VERSION=$(echo "$NEW_MAIN_VERSION" | sed 's/-r[0-9]*$//')
-
+            DISPLAY_VERSION="${NEW_MAIN_VERSION%-r*}"
             yq e ".version = \"${DISPLAY_VERSION}\"" -i "$METADATA_FILE"
 
-            if [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then
-              COMMIT_TYPE="feat!"
-            elif [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
-              COMMIT_TYPE="feat"
-            elif [ "$NEW_PATCH" != "$OLD_PATCH" ]; then
-              COMMIT_TYPE="fix"
-            else
-              COMMIT_TYPE="chore"
+            if   [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then COMMIT_TYPE="feat!"
+            elif [ "$NEW_MINOR" != "$OLD_MINOR" ]; then COMMIT_TYPE="feat"
+            elif [ "$NEW_PATCH" != "$OLD_PATCH" ]; then COMMIT_TYPE="fix"
+            else                                        COMMIT_TYPE="chore"
             fi
 
             COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): ${CURRENT_MAIN_PKG_VERSION} → ${NEW_MAIN_VERSION}"
@@ -214,10 +223,9 @@ jobs:
           COMMIT_BODY=$(printf '%b' "$UPDATED_LINES" | sed '/^$/d')
 
           echo "commit_title=${COMMIT_TITLE}" >> "$GITHUB_OUTPUT"
-
           {
             echo "commit_body<<EOF"
-            echo "$COMMIT_BODY"
+            printf '%s\n' "$COMMIT_BODY"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -230,8 +238,7 @@ jobs:
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
           title: ${{ steps.check_update.outputs.commit_title }}
-          body: |
-            ${{ steps.check_update.outputs.commit_body }}
+          body: ${{ steps.check_update.outputs.commit_body }}
           commit-message: |
             ${{ steps.check_update.outputs.commit_title }}
 
