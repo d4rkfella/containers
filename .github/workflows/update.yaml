@@ -24,41 +24,9 @@ jobs:
           echo "Generated matrix (compact):"
           echo "$MATRIX_JSON"
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-  
-  setup:
-    needs: [prepare_matrix]
-    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Setup apk-tools
-        uses: d4rkfella/actions/setup-apk-tools@main
-      
-      - name: Create Cache Key
-        id: cache
-        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Restore Wolfi Base Image
-        id: image-restore
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: wolfi-base-${{ steps.cache.outputs.key }}
-          path: wolfi-base.tar
-
-      - name: Preload Wolfi Base Image
-        if: ${{ always() && steps.image-restore.outputs.cache-hit != 'true' }}
-        run: |
-          docker pull cgr.dev/chainguard/wolfi-base:latest
-          docker save cgr.dev/chainguard/wolfi-base:latest > wolfi-base.tar
-
-      - name: Cache Wolfi Base Image
-        if: ${{ always() && steps.image-restore.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: wolfi-base-${{ steps.cache.outputs.key }}
-          path: wolfi-base.tar
-  
   check_and_update_package:
-    needs: [prepare_matrix, setup]
+    needs: [prepare_matrix]
     runs-on: ubuntu-24.04
     if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     strategy:
@@ -67,51 +35,45 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    steps: 
-      - name: Retreive Cache Key
-        id: cache
-        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-      
-      - name: Restore Wolfi Base
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: wolfi-base-${{ steps.cache.outputs.key }}
-          path: wolfi-base.tar
-
-      - name: Load Wolfi Base
-        run: |
-          docker load < wolfi-base.tar
-      
+    steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Create update script
-        run: |
-          cat > "${{ github.workspace }}/update_script.sh" << 'EOSCRIPT'
-          #!/usr/bin/ash
-          set -e
+      - name: Setup apk-tools
+        id: apk
+        uses: d4rkfella/actions/setup-apk-tools@main
+        with:
+          repositories: |
+            https://packages.wolfi.dev/os
+            https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
+          keys: |
+            https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+            https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
 
-          apk add yq curl coreutils
-          
-          echo "https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main" >> /etc/apk/repositories
-          curl -sL https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub -o /etc/apk/keys/melange.rsa.pub
-          
-          apk update
-          
+      - name: Install yq
+        run: |
+          curl --retry 3 -fsSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+
+      - name: Check and update packages
+        id: check_update
+        env:
+          APK_ROOT: ${{ steps.apk.outputs.apk-root }}
+        run: |
+          set -euo pipefail
+
           APKO_FILE="${{ matrix.name }}/apko.yaml"
           METADATA_FILE="${{ matrix.name }}/metadata.yaml"
           APP_NAME="${{ matrix.name }}"
 
           echo "file_modified=false" >> "$GITHUB_OUTPUT"
-          echo "latest_version=" >> "$GITHUB_OUTPUT"
+          echo "latest_version="     >> "$GITHUB_OUTPUT"
 
-          # Check if metadata.yaml exists
           if [ ! -f "$METADATA_FILE" ]; then
             echo "⚠️  No metadata.yaml found for $APP_NAME"
             exit 0
           fi
 
-          # Read main_packages from metadata.yaml
           MAIN_PACKAGES=$(yq e '.main_packages[]' "$METADATA_FILE" 2>/dev/null || echo "")
           if [ -z "$MAIN_PACKAGES" ]; then
             echo "ℹ️ No main_packages defined in $METADATA_FILE"
@@ -121,25 +83,20 @@ jobs:
           echo "📦 Main packages to check:"
           echo "$MAIN_PACKAGES"
 
-          # Create temp files
           TMP_UPDATES=$(mktemp)
           TMP_VERSIONS=$(mktemp)
           TMP_COUNT=$(mktemp)
-          echo "0" > "$TMP_COUNT"
           TMP_CHECKED=$(mktemp)
+          echo "0" > "$TMP_COUNT"
           echo "0" > "$TMP_CHECKED"
 
-          # Process each main package
-          echo "$MAIN_PACKAGES" | while read -r MAIN_PKG; do
-            if [ -z "$MAIN_PKG" ]; then
-              continue
-            fi
+          while IFS= read -r MAIN_PKG; do
+            [ -z "$MAIN_PKG" ] && continue
 
             echo "::group::Checking $MAIN_PKG"
-            
-            # Find the pinned version for this package in apko.yaml
+
             PACKAGE_PIN_LINE=$(yq e ".contents.packages[] | select(test(\"^${MAIN_PKG}=\"))" "$APKO_FILE" || true)
-            
+
             if [ -z "$PACKAGE_PIN_LINE" ]; then
               echo "⚠️  Package $MAIN_PKG is listed in metadata.yaml but not pinned in $APKO_FILE"
               echo "::endgroup::"
@@ -149,11 +106,9 @@ jobs:
             PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
             CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
 
-            # Increment checked packages count
-            CHECKED=$(cat "$TMP_CHECKED")
-            echo $((CHECKED + 1)) > "$TMP_CHECKED"
+            echo $(($(cat "$TMP_CHECKED") + 1)) > "$TMP_CHECKED"
 
-            LATEST_FULL_STRING=$(apk search --exact "$PACKAGE_NAME" | grep -v "^fetch" | head -n 1 || true)
+            LATEST_FULL_STRING=$(apk.static --root "$APK_ROOT" --arch x86_64 search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
             LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | sed "s/^${PACKAGE_NAME}-//" || true)
 
             if [ -z "$LATEST_VERSION" ]; then
@@ -164,8 +119,7 @@ jobs:
 
             echo "$LATEST_VERSION" >> "$TMP_VERSIONS"
 
-            # Use apk's version comparison
-            VERSION_COMPARE=$(apk version -t "$CURRENT_VERSION" "$LATEST_VERSION")
+            VERSION_COMPARE=$(apk.static version -t "$CURRENT_VERSION" "$LATEST_VERSION")
             case "$VERSION_COMPARE" in
               ">")
                 echo "⚠️  Current version ($CURRENT_VERSION) is NEWER than available ($LATEST_VERSION) for $PACKAGE_NAME"
@@ -178,34 +132,27 @@ jobs:
                 yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
                 echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
                 echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                # Increment update count
-                COUNT=$(cat "$TMP_COUNT")
-                echo $((COUNT + 1)) > "$TMP_COUNT"
+                echo $(($(cat "$TMP_COUNT") + 1)) > "$TMP_COUNT"
                 ;;
               *)
                 echo "⚠️  Invalid version comparison for $PACKAGE_NAME ($CURRENT_VERSION vs $LATEST_VERSION)"
                 ;;
             esac
-            
-            echo "::endgroup::"
-          done
 
-          # Get final counts
+            echo "::endgroup::"
+          done <<< "$MAIN_PACKAGES"
+
           UPDATED_COUNT=$(cat "$TMP_COUNT")
           CHECKED_COUNT=$(cat "$TMP_CHECKED")
 
-          # Get the most recent version for PR title and metadata update
           if [ -s "$TMP_VERSIONS" ]; then
             LATEST_VERSION=$(sort -Vr "$TMP_VERSIONS" | head -n1)
             echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
-            
-            # Extract semantic version (x.y.z) from the full version string
+
             SEMANTIC_VERSION=$(echo "$LATEST_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "$LATEST_VERSION")
-            
-            # Update metadata.yaml only if the semantic version changed
+
             if [ "$UPDATED_COUNT" -gt 0 ]; then
               CURRENT_METADATA_VERSION=$(yq e '.version' "$METADATA_FILE")
-              
               if [ "$CURRENT_METADATA_VERSION" != "$SEMANTIC_VERSION" ]; then
                 echo "📝 Updating metadata.yaml version: $CURRENT_METADATA_VERSION → $SEMANTIC_VERSION"
                 yq e ".version = \"$SEMANTIC_VERSION\"" -i "$METADATA_FILE"
@@ -215,13 +162,12 @@ jobs:
             fi
           fi
 
-          # Output results
           if [ "$UPDATED_COUNT" -gt 0 ]; then
             echo "✅ Updated $UPDATED_COUNT/$CHECKED_COUNT main packages:"
             cat "$TMP_UPDATES"
             echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
-            cat "$TMP_UPDATES" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
+            cat "$TMP_UPDATES"          >> "$GITHUB_OUTPUT"
+            echo "EOF"                  >> "$GITHUB_OUTPUT"
           elif [ "$CHECKED_COUNT" -gt 0 ]; then
             echo "✅ All main packages are up-to-date"
           else
@@ -229,20 +175,6 @@ jobs:
           fi
 
           rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT" "$TMP_CHECKED"
-          EOSCRIPT
-          chmod +x "${{ github.workspace }}/update_script.sh"
-
-      - name: Check and update packages
-        id: check_update
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:${{ github.workspace }}" \
-            -v "${GITHUB_OUTPUT}:${GITHUB_OUTPUT}" \
-            -w "${{ github.workspace }}" \
-            -e GITHUB_OUTPUT="$GITHUB_OUTPUT" \
-            --entrypoint /usr/bin/ash \
-            cgr.dev/chainguard/wolfi-base:latest \
-            "${{ github.workspace }}/update_script.sh"
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
