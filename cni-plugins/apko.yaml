@@ -6,28 +6,11 @@ contents:
   packages:
     - wolfi-baselayout
     - rsync
-    - cni-plugins-bandwidth-compat=1.9.1-r2
-    - cni-plugins-bridge-compat=1.9.1-r2
-    - cni-plugins-dhcp-compat=1.9.1-r2
-    - cni-plugins-dummy-compat=1.9.1-r2
-    - cni-plugins-firewall-compat=1.9.1-r2
-    - cni-plugins-host-device-compat=1.9.1-r2
-    - cni-plugins-host-local-compat=1.9.1-r2
-    - cni-plugins-ipvlan-compat=1.9.1-r2
-    - cni-plugins-loopback-compat=1.9.1-r2
-    - cni-plugins-macvlan-compat=1.9.1-r2
-    - cni-plugins-portmap-compat=1.9.1-r2
-    - cni-plugins-ptp-compat=1.9.1-r2
-    - cni-plugins-sbr-compat=1.9.1-r2
-    - cni-plugins-static-compat=1.9.1-r2
-    - cni-plugins-tap-compat=1.9.1-r2
-    - cni-plugins-tuning-compat=1.9.1-r2
-    - cni-plugins-vlan-compat=1.9.1-r2
-    - cni-plugins-vrf-compat=1.9.1-r2
+    - cni-plugins-aws-k8s-compat=1.9.1-r2
 accounts:
   run-as: root:root
 environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
 entrypoint:
-  command: rsync -avL /opt/cni/bin/ /host/opt/cni/bin
+  command: rsync -avL /init/ /host/opt/cni/bin
