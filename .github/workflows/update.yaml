@@ -30,6 +30,9 @@ jobs:
     if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Setup apk-tools
+        uses: d4rkfella/actions/setup-apk-tools@main
+      
       - name: Create Cache Key
         id: cache
         run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
