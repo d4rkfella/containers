@@ -162,7 +162,7 @@ jobs:
               COMMIT_TYPE="fix"
             fi
 
-            DISPLAY_VERSION=$(echo "$NEW_MAIN_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+([^-]|-[a-zA-Z][^-]*)*')
+            DISPLAY_VERSION=$(echo "$NEW_MAIN_VERSION" | sed 's/-r[0-9]*$//')
 
             yq e ".version = \"${DISPLAY_VERSION}\"" -i "$METADATA_FILE"
 
