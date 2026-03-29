@@ -57,21 +57,19 @@ jobs:
 
       - name: Check and update packages
         id: check_update
-        env:
-          APK_ROOT: ${{ steps.apk.outputs.apk-root }}
-          APP_NAME: ${{ matrix.name }}
         run: |
           set -euo pipefail
 
-          APKO_FILE="${APP_NAME}/apko.yaml"
-          METADATA_FILE="${APP_NAME}/metadata.yaml"
+          IMAGE_NAME: ${{ matrix.name }}
+          APKO_FILE="${IMAGE_NAME}/apko.yaml"
+          METADATA_FILE="${IMAGE_NAME}/metadata.yaml"
 
           echo "file_modified=false"  >> "$GITHUB_OUTPUT"
           echo "commit_title="        >> "$GITHUB_OUTPUT"
           echo "commit_body="         >> "$GITHUB_OUTPUT"
 
           if [ ! -f "$METADATA_FILE" ]; then
-            echo "⚠️  No metadata.yaml found for $APP_NAME"
+            echo "⚠️  No metadata.yaml found for $IMAGE_NAME"
             exit 0
           fi
 
@@ -103,7 +101,7 @@ jobs:
 
             echo "::group::Checking $PACKAGE_NAME"
 
-            LATEST_FULL=$(apk.static --root "$APK_ROOT" --arch x86_64 search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
+            LATEST_FULL=$(apk.static --root "${{ steps.apk.outputs.apk-root }}" --arch x86_64 search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
             LATEST_VERSION=$(echo "$LATEST_FULL" | sed "s/^${PACKAGE_NAME}-//" || true)
 
             if [ -z "$LATEST_VERSION" ]; then
@@ -170,9 +168,9 @@ jobs:
               COMMIT_TYPE="chore"
             fi
 
-            COMMIT_TITLE="${COMMIT_TYPE}(${APP_NAME}): bump to ${DISPLAY_VERSION}"
+            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): bump to ${DISPLAY_VERSION}"
           else
-            COMMIT_TITLE="chore(${APP_NAME}): bump dependencies"
+            COMMIT_TITLE="chore(${IMAGE_NAME}): bump dependencies"
           fi
 
           COMMIT_BODY=$(printf '%b' "$UPDATED_LINES" | sed '/^$/d')
