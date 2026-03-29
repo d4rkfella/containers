@@ -168,7 +168,7 @@ jobs:
               COMMIT_TYPE="chore"
             fi
 
-            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): bump to ${DISPLAY_VERSION}"
+            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): ${CURRENT_MAIN_VERSION} → ${NEW_MAIN_VERSION}"
           else
             COMMIT_TITLE="chore(${IMAGE_NAME}): bump dependencies"
           fi
