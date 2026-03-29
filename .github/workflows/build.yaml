@@ -20,169 +20,106 @@ jobs:
   prepare_matrix:
     runs-on: ubuntu-24.04
     outputs:
-      matrix: ${{ steps.generate_matrix.outputs.matrix }}
+      matrix: ${{ steps.build_matrix.outputs.matrix }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
-      - name: Handle Push Event
-        id: push_event
+      - name: Filter changed apko files
+        id: filter
         if: github.event_name == 'push'
-        shell: bash
-        run: |
-          echo "::group::Processing Push Event"
-          changed_apko_files=$(git diff --name-only --diff-filter=AM ${{ github.event.before }} ${{ github.sha }} -- '**/apko.yaml' || true)
-      
-          if [[ -n "$changed_apko_files" ]]; then
-            echo "Changed/added apko.yaml files found:"
-            echo "$changed_apko_files"
-      
-            apps_list=""
-            while IFS= read -r file_path; do
-              dir_name=$(dirname "$file_path" | sed 's|^\./||')
-              if [[ -n "$dir_name" ]]; then
-                apps_list+="${dir_name}"$'\n'
-              fi
-            done <<< "$changed_apko_files"
-      
-            {
-              echo "apps_list<<EOF"
-              echo "$apps_list"
-              echo "EOF"
-            } >> "$GITHUB_OUTPUT"
-          fi
-          echo "::endgroup::"
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          list-files: json
+          filters: |
+            apko:
+              - added|modified: '**/apko.yaml'
 
-      - name: Handle Workflow Dispatch
-        id: workflow_dispatch
+      - name: Validate dispatch input
+        id: dispatch
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
-          echo "::group::Processing Workflow Dispatch"
-          echo "Workflow dispatch with for app: '${{ github.event.inputs.app_name }}'"
-          
-          if [ ! -f "${{ github.event.inputs.app_name }}/apko.yaml" ]; then
-            echo "::error::No apko.yaml found in directory '${{ github.event.inputs.app_name }}'"
+          APP="${{ github.event.inputs.app_name }}"
+          if [[ ! -f "${APP}/apko.yaml" ]]; then
+            echo "::error::No apko.yaml found in directory '${APP}'"
             exit 1
           fi
-          
-          echo "apps_list<<EOF" >> "$GITHUB_OUTPUT"
-          echo "${{ github.event.inputs.app_name }}" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "::endgroup::"
+          echo "files=[\"${APP}/apko.yaml\"]" >> "$GITHUB_OUTPUT"
 
-      - name: Determine image tags
-        id: determine_version
-        shell: bash
-        run: |
-          set -eo pipefail
-          echo "::group::Determine Container image version"
+      - name: Build matrix
+        id: build_matrix
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          CHANGED_FILES: ${{ steps.filter.outputs.apko_files || steps.dispatch.outputs.files || '[]' }}
+        with:
+          script: |
+            const fs   = require('fs');
+            const path = require('path');
 
-          mapfile -t apps_list < <(echo "${{ steps.push_event.outputs.apps_list }}${{ steps.workflow_dispatch.outputs.apps_list }}" | grep -v '^$' | sort -u)
+            const files  = JSON.parse(process.env.CHANGED_FILES);
+            const include = [];
 
-          declare -a apps_list_with_versions=()
+            for (const file of files) {
+              const dir      = path.dirname(file);
+              const metaPath = path.join(dir, 'metadata.yaml');
 
-          for app in "${apps_list[@]}"; do
-            echo "::group::Processing $app"
+              if (!fs.existsSync(metaPath)) {
+                core.warning(`No metadata.yaml for '${dir}' — skipping`);
+                continue;
+              }
 
-            METADATA_FILE="${app}/metadata.yaml"
-            APKO_FILE="${app}/apko.yaml"
+              const { execSync } = require('child_process');
+              const version = execSync(
+                `yq -r '.version // ""' "${metaPath}"`,
+                { encoding: 'utf8' }
+              ).trim();
 
-            VERSION=""
-            if [[ -f "$METADATA_FILE" ]]; then
-              VERSION=$(yq -r '.version // ""' "$METADATA_FILE")
-            fi
+              if (!version) {
+                core.warning(`No version field in '${metaPath}' — skipping`);
+                continue;
+              }
 
-            if [[ -z "$VERSION" ]]; then
-              echo "Warning: No metadata version found for $app. Skipping."
-              echo "::endgroup::"
-              continue
-            fi
+              core.info(`Resolved ${dir} → ${version}`);
+              include.push({ name: dir, full_version: version });
+            }
 
-            echo "Found version $VERSION for app $app"
-            apps_list_with_versions+=("$app,$VERSION")
-            echo "::endgroup::"
-          done
-
-          if [ "${#apps_list_with_versions[@]}" -eq 0 ]; then
-            echo "apps_list_with_versions=" >> "$GITHUB_OUTPUT"
-          else
-            echo "apps_list_with_versions<<EOF" >> "$GITHUB_OUTPUT"
-            printf "%s\n" "${apps_list_with_versions[@]}" >> "$GITHUB_OUTPUT"
-            echo "EOF" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "::endgroup::"
-      
-      - name: Generate Build Matrix
-        id: generate_matrix
-        shell: bash
-        run: |
-          set -eo pipefail
-          echo "::group::Generating Build Matrix"
-      
-          matrix_json="[]"
-      
-          if [[ -z "${{ steps.determine_version.outputs.apps_list_with_versions }}" ]]; then
-            echo "No apps with versions found, skipping matrix generation."
-          else
-            mapfile -t apps_list_with_versions < <(echo "${{ steps.determine_version.outputs.apps_list_with_versions }}")
-      
-            for entry in "${apps_list_with_versions[@]}"; do
-              if [[ -z "$entry" ]]; then
-                continue
-              fi
-      
-              IFS=, read -r app version <<< "$entry"
-      
-              if [[ -z "$app" || -z "$version" ]]; then
-                continue
-              fi
-      
-              echo "Formatting matrix entry for $app:$version"
-      
-              entry_json=$(jq -n \
-                --arg name "$app" \
-                --arg full_version "$version" \
-                '{name: $name, full_version: $full_version}')
-              matrix_json=$(echo "$matrix_json" | jq ". += [$entry_json]")
-            done
-          fi
-      
-          matrix_output=$(echo "$matrix_json" | jq -c '{"include": .}')
-          echo "matrix=$matrix_output" >> "$GITHUB_OUTPUT"
-          echo "::endgroup::"
+            const matrix = JSON.stringify({ include });
+            core.info(`Final matrix: ${matrix}`);
+            core.setOutput('matrix', matrix);
 
   setup:
     needs: prepare_matrix
     if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-24.04
+    outputs:
+      cache-key: ${{ steps.cache_key.outputs.key }}
     steps:
-      - name: Create Cache Key
-        id: cache
-        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      - name: Compute cache key
+        id: cache_key
+        run: echo "key=wolfi-sdk-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
       - name: Restore Wolfi SDK
         id: sdk-restore
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: wolfi-sdk-${{ steps.cache.outputs.key }}
+          key: ${{ steps.cache_key.outputs.key }}
           path: wolfi-sdk.tar
           lookup-only: true
 
-      - name: Preload Wolfi SDK
-        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true' }}
+      - name: Pull and cache Wolfi SDK
+        if: steps.sdk-restore.outputs.cache-hit != 'true'
         run: |
           docker pull ghcr.io/wolfi-dev/sdk:latest
           docker save ghcr.io/wolfi-dev/sdk:latest > wolfi-sdk.tar
 
-      - name: Cache Wolfi SDK
-        if: ${{ always() && steps.sdk-restore.outputs.cache-hit != 'true' }}
+      - name: Save Wolfi SDK to cache
+        if: steps.sdk-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: wolfi-sdk-${{ steps.cache.outputs.key }}
+          key: ${{ steps.cache_key.outputs.key }}
           path: wolfi-sdk.tar
 
   build:
@@ -197,7 +134,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix: ${{fromJson(needs.prepare_matrix.outputs.matrix)}}
+      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -205,26 +142,25 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Retreive Cache Key
-        id: cache
-        run: echo "key=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      - name: Retrieve cache key
+        id: cache_key
+        run: echo "key=wolfi-sdk-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
       - name: Restore Wolfi SDK
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
-          key: wolfi-sdk-${{ steps.cache.outputs.key }}
+          key: ${{ steps.cache_key.outputs.key }}
           path: wolfi-sdk.tar
 
       - name: Load Wolfi SDK
-        run: |
-          docker load < wolfi-sdk.tar
+        run: docker load < wolfi-sdk.tar
 
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Build and Push ${{ matrix.name }} image
-        uses: d4rkfella/actions/apko-snapshot@main
+      - name: Build and push ${{ matrix.name }} image
         id: apko
+        uses: d4rkfella/actions/apko-snapshot@main
         with:
           config: ${{ matrix.name }}/apko.yaml
           additional-tags: ${{ matrix.full_version }}
@@ -236,21 +172,14 @@ jobs:
           annotations: "org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/containers/pkgs/container/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
           base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 
-      - name: Create success marker
-        if: steps.apko.outcome == 'success'
-        shell: bash
-        run: |
-          MARKER_CONTENT=$(jq -n \
-            --arg name "${{ matrix.name }}" \
-            --arg ver "${{ matrix.full_version }}" \
-            --arg digest "${{ steps.apko.outputs.digest }}" \
-            '{name: $name, tag: $ver, digest: $digest}')
-          echo "$MARKER_CONTENT" > "./success_marker-${{ matrix.name }}.json"
-
       - name: Upload success marker
         if: steps.apko.outcome == 'success'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: success-marker-${{ matrix.name }}
-          path: ./success_marker-${{ matrix.name }}.json
+          path: |
+            ${{ toJson(fromJson(format(
+              '{{"name":"{0}","tag":"{1}","digest":"{2}"}}',
+              matrix.name, matrix.full_version, steps.apko.outputs.digest
+            ))) }}
           retention-days: 1
