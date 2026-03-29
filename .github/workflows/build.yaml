@@ -73,12 +73,12 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
 
-      - name: Determine App Version
+      - name: Determine image tags
         id: determine_version
         shell: bash
         run: |
           set -eo pipefail
-          echo "::group::Determine Container version"
+          echo "::group::Determine Container image version"
 
           mapfile -t apps_list < <(echo "${{ steps.push_event.outputs.apps_list }}${{ steps.workflow_dispatch.outputs.apps_list }}" | grep -v '^$' | sort -u)
 
@@ -106,7 +106,6 @@ jobs:
             echo "::endgroup::"
           done
 
-          # Output the versions for the matrix
           if [ "${#apps_list_with_versions[@]}" -eq 0 ]; then
             echo "apps_list_with_versions=" >> "$GITHUB_OUTPUT"
           else
@@ -228,7 +227,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Build and Push ${{ matrix.name }} with Apko
+      - name: Build and Push ${{ matrix.name }} image
         uses: d4rkfella/actions/apko-snapshot@main
         id: apko
         with:
