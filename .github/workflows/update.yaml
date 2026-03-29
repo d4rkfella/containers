@@ -87,6 +87,7 @@ jobs:
           fi
 
           CURRENT_MAIN_VERSION=$(yq e '.version' "$METADATA_FILE" 2>/dev/null || echo "")
+          CURRENT_MAIN_PKG_VERSION=$(yq e '.contents.packages[] | select(test("^'"$MAIN_PKG"'="))' "$APKO_FILE" 2>/dev/null | cut -d= -f2 || echo "")
 
           PINNED_PACKAGES=$(yq e '.contents.packages[] | select(test("="))' "$APKO_FILE" 2>/dev/null || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
@@ -205,7 +206,7 @@ jobs:
               COMMIT_TYPE="chore"
             fi
 
-            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): ${CURRENT_MAIN_VERSION} → ${NEW_MAIN_VERSION}"
+            COMMIT_TITLE="${COMMIT_TYPE}(${IMAGE_NAME}): ${CURRENT_MAIN_PKG_VERSION} → ${NEW_MAIN_VERSION}"
           else
             COMMIT_TITLE="chore(${IMAGE_NAME}): bump dependencies"
           fi
