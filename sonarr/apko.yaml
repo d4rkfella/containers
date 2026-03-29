@@ -27,11 +27,11 @@ accounts:
       shell: ""
   run-as: nonroot:nonroot
 environment:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  XDG_CONFIG_HOME: /config
-  DOTNET_RUNNING_IN_CONTAINER: true
-  DOTNET_EnableDiagnostics: 0
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  XDG_CONFIG_HOME: "/config"
+  DOTNET_RUNNING_IN_CONTAINER: "true"
+  DOTNET_EnableDiagnostics: "0"
 entrypoint:
   command: catatonit -- Sonarr
 cmd: --nobrowser

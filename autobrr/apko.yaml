@@ -27,11 +27,11 @@ accounts:
       shell: ""
   run-as: nonroot:nonroot
 environment:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  HOME: /config
-  XDG_CONFIG_HOME: /config
-  XDG_DATA_HOME: /config
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  HOME: "/config"
+  XDG_CONFIG_HOME: "/config"
+  XDG_DATA_HOME: "/config"
 entrypoint:
   command: catatonit -- autobrr
 cmd: --config /config

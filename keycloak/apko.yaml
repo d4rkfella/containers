@@ -14,7 +14,7 @@ contents:
     - libcrypt1
     - libxcrypt
     - keycloak-darkfellanet=26.5.6-r2
-    - keycloak-darkfellanet-compat=26.5.6-r2
+    - keycloak-darkfellanet-compat
 accounts:
   groups:
     - groupname: nonroot
@@ -27,11 +27,11 @@ accounts:
       shell: ""
   run-as: 65532:65532
 environment:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  KC_RUN_IN_CONTAINER: true
-  KC_HEALTH_ENABLED: true
-  KC_METRICS_ENABLED: true
-  KC_DB: postgres
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  KC_RUN_IN_CONTAINER: "true"
+  KC_HEALTH_ENABLED: "true"
+  KC_METRICS_ENABLED: "true"
+  KC_DB: "postgres"
 entrypoint:
   command: /opt/keycloak/bin/kc.sh

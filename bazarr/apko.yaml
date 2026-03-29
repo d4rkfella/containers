@@ -27,10 +27,10 @@ accounts:
       shell: ""
   run-as: nonroot:nonroot
 environment:
-  PATH: /usr/lib/bazarr/app/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  PYTHONUNBUFFERED: 1
-  PYTHONDONTWRITEBYTECODE: 1
+  PATH: "/usr/lib/bazarr/app/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
 entrypoint:
   command: catatonit -- python bazarr.py
 cmd: --no-update --config /config

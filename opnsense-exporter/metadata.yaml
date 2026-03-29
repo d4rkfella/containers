@@ -1,3 +1,2 @@
 version: 0.0.14
-main_packages:
-  - opnsense-exporter
+main_package: opnsense-exporter

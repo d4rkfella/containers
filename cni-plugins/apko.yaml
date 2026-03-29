@@ -10,8 +10,8 @@ contents:
 accounts:
   run-as: root:root
 environment:
-  PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  PATH: "/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
 entrypoint:
   command: rsync -avLc /init/
 cmd: /host/opt/cni/bin

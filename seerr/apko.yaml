@@ -27,8 +27,8 @@ accounts:
       shell: ""
   run-as: nonroot:nonroot
 environment:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  NODE_ENV: production
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  NODE_ENV: "production"
 entrypoint:
   command: catatonit -- node dist/index.js

@@ -1,3 +1,2 @@
 version: 4.0.16.2944
-main_packages:
-  - sonarr
+main_package: sonarr

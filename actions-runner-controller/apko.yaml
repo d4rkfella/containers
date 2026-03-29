@@ -11,7 +11,7 @@ contents:
   packages:
     - wolfi-baselayout
     - actions-runner-controller=0.14.0-r0
-    - actions-runner-controller-compat=0.14.0-r0
+    - actions-runner-controller-compat
 accounts:
   groups:
     - groupname: nonroot
@@ -24,7 +24,7 @@ accounts:
       shell: ""
   run-as: nonroot:nonroot
 environment:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
 entrypoint:
   command: /manager

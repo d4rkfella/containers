@@ -1,4 +1,2 @@
 version: 26.5.6
-main_packages:
-  - keycloak-darkfellanet
-  - keycloak-darkfellanet-compat
+main_package: keycloak-darkfellanet

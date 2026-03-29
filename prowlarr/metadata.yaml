@@ -1,3 +1,2 @@
-version: 2.3.4
-main_packages:
-  - prowlarr
+version: 2.3.4.5307
+main_package: prowlarr

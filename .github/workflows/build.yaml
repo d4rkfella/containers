@@ -143,15 +143,10 @@ jobs:
       
               echo "Formatting matrix entry for $app:$version"
       
-              MAJOR_VERSION=$(echo "$version" | cut -d. -f1)
-              MAJOR_MINOR_VERSION=$(echo "$version" | cut -d. -f1-2)
-      
               entry_json=$(jq -n \
                 --arg name "$app" \
                 --arg full_version "$version" \
-                --arg major_version "$MAJOR_VERSION" \
-                --arg major_minor_version "$MAJOR_MINOR_VERSION" \
-                '{name: $name, full_version: $full_version, major_version: $major_version, major_minor_version: $major_minor_version}')
+                '{name: $name, full_version: $full_version}')
               matrix_json=$(echo "$matrix_json" | jq ". += [$entry_json]")
             done
           fi
@@ -232,7 +227,7 @@ jobs:
         id: apko
         with:
           config: ${{ matrix.name }}/apko.yaml
-          additional-tags: ${{ matrix.full_version }},${{ matrix.major_version }},${{ matrix.major_minor_version }}
+          additional-tags: ${{ matrix.full_version }}
           archs: amd64,arm64
           slsa-attest: "true"
           sbom-attest: "true"
@@ -244,13 +239,13 @@ jobs:
       - name: Create success marker
         if: steps.apko.outcome == 'success'
         shell: bash
-        env:
-          APP_NAME: ${{ matrix.name }}
-          APP_VERSION: ${{ matrix.full_version }}
-          DIGEST: ${{ steps.apko.outputs.digest }}
         run: |
-          MARKER_CONTENT=$(jq -n --arg name "$APP_NAME" --arg ver "$APP_VERSION" --arg digest "$DIGEST" '{name: $name, tag: $ver, digest: $digest}')
-          echo "$MARKER_CONTENT" > "./success_marker-$APP_NAME.json"
+          MARKER_CONTENT=$(jq -n \
+            --arg name "${{ matrix.name }}" \
+            --arg ver "${{ matrix.full_version }}" \
+            --arg digest "${{ steps.apko.outputs.digest }}" \
+            '{name: $name, tag: $ver, digest: $digest}')
+          echo "$MARKER_CONTENT" > "./success_marker-${{ matrix.name }}.json"
 
       - name: Upload success marker
         if: steps.apko.outcome == 'success'
