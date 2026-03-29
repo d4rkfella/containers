@@ -59,136 +59,146 @@ jobs:
         id: check_update
         env:
           APK_ROOT: ${{ steps.apk.outputs.apk-root }}
+          APP_NAME: ${{ matrix.name }}
         run: |
           set -euo pipefail
 
-          APKO_FILE="${{ matrix.name }}/apko.yaml"
-          METADATA_FILE="${{ matrix.name }}/metadata.yaml"
-          APP_NAME="${{ matrix.name }}"
+          APKO_FILE="${APP_NAME}/apko.yaml"
+          METADATA_FILE="${APP_NAME}/metadata.yaml"
 
-          echo "file_modified=false" >> "$GITHUB_OUTPUT"
-          echo "latest_version="     >> "$GITHUB_OUTPUT"
+          echo "file_modified=false"  >> "$GITHUB_OUTPUT"
+          echo "commit_title="        >> "$GITHUB_OUTPUT"
+          echo "commit_body="         >> "$GITHUB_OUTPUT"
 
           if [ ! -f "$METADATA_FILE" ]; then
             echo "⚠️  No metadata.yaml found for $APP_NAME"
             exit 0
           fi
 
-          MAIN_PACKAGES=$(yq e '.main_packages[]' "$METADATA_FILE" 2>/dev/null || echo "")
-          if [ -z "$MAIN_PACKAGES" ]; then
-            echo "ℹ️ No main_packages defined in $METADATA_FILE"
+          MAIN_PKG=$(yq e '.main_package' "$METADATA_FILE" 2>/dev/null || echo "")
+          if [ -z "$MAIN_PKG" ]; then
+            echo "⚠️  No main_package defined in $METADATA_FILE"
             exit 0
           fi
 
-          echo "📦 Main packages to check:"
-          echo "$MAIN_PACKAGES"
+          CURRENT_MAIN_VERSION=$(yq e '.version' "$METADATA_FILE" 2>/dev/null || echo "")
 
-          TMP_UPDATES=$(mktemp)
-          TMP_VERSIONS=$(mktemp)
-          TMP_COUNT=$(mktemp)
-          TMP_CHECKED=$(mktemp)
-          echo "0" > "$TMP_COUNT"
-          echo "0" > "$TMP_CHECKED"
+          PINNED_PACKAGES=$(yq e '.contents.packages[] | select(test("="))' "$APKO_FILE" 2>/dev/null || echo "")
+          if [ -z "$PINNED_PACKAGES" ]; then
+            echo "ℹ️  No pinned packages found in $APKO_FILE"
+            exit 0
+          fi
 
-          while IFS= read -r MAIN_PKG; do
-            [ -z "$MAIN_PKG" ] && continue
+          echo "📦 Pinned packages found:"
+          echo "$PINNED_PACKAGES"
 
-            echo "::group::Checking $MAIN_PKG"
+          UPDATED_LINES=""
+          NEW_MAIN_VERSION=""
 
-            PACKAGE_PIN_LINE=$(yq e ".contents.packages[] | select(test(\"^${MAIN_PKG}=\"))" "$APKO_FILE" || true)
+          while IFS= read -r PIN; do
+            [ -z "$PIN" ] && continue
 
-            if [ -z "$PACKAGE_PIN_LINE" ]; then
-              echo "⚠️  Package $MAIN_PKG is listed in metadata.yaml but not pinned in $APKO_FILE"
-              echo "::endgroup::"
-              continue
-            fi
+            PACKAGE_NAME=$(echo "$PIN" | cut -d= -f1)
+            CURRENT_VERSION=$(echo "$PIN" | cut -d= -f2)
 
-            PACKAGE_NAME=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f1)
-            CURRENT_VERSION=$(echo "$PACKAGE_PIN_LINE" | cut -d= -f2)
+            echo "::group::Checking $PACKAGE_NAME"
 
-            echo $(($(cat "$TMP_CHECKED") + 1)) > "$TMP_CHECKED"
-
-            LATEST_FULL_STRING=$(apk.static --root "$APK_ROOT" --arch x86_64 search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
-            LATEST_VERSION=$(echo "$LATEST_FULL_STRING" | sed "s/^${PACKAGE_NAME}-//" || true)
+            LATEST_FULL=$(apk.static --root "$APK_ROOT" --arch x86_64 search --exact "$PACKAGE_NAME" 2>/dev/null | head -n1 || true)
+            LATEST_VERSION=$(echo "$LATEST_FULL" | sed "s/^${PACKAGE_NAME}-//" || true)
 
             if [ -z "$LATEST_VERSION" ]; then
-              echo "⚠️  Version check failed for $PACKAGE_NAME"
+              echo "⚠️  Could not resolve latest version for $PACKAGE_NAME"
               echo "::endgroup::"
               continue
             fi
 
-            echo "$LATEST_VERSION" >> "$TMP_VERSIONS"
+            COMPARE=$(apk.static version -t "$CURRENT_VERSION" "$LATEST_VERSION")
 
-            VERSION_COMPARE=$(apk.static version -t "$CURRENT_VERSION" "$LATEST_VERSION")
-            case "$VERSION_COMPARE" in
-              ">")
-                echo "⚠️  Current version ($CURRENT_VERSION) is NEWER than available ($LATEST_VERSION) for $PACKAGE_NAME"
+            case "$COMPARE" in
+              "<")
+                echo "🔄 $PACKAGE_NAME: $CURRENT_VERSION → $LATEST_VERSION"
+                yq e "(.contents.packages[] | select(. == \"${PACKAGE_NAME}=${CURRENT_VERSION}\")) = \"${PACKAGE_NAME}=${LATEST_VERSION}\"" -i "$APKO_FILE"
+                UPDATED_LINES="${UPDATED_LINES}- ${PACKAGE_NAME}: ${CURRENT_VERSION} → ${LATEST_VERSION}\n"
+                if [ "$PACKAGE_NAME" = "$MAIN_PKG" ]; then
+                  NEW_MAIN_VERSION="$LATEST_VERSION"
+                fi
                 ;;
               "=")
                 echo "✓ $PACKAGE_NAME is up-to-date ($CURRENT_VERSION)"
                 ;;
-              "<")
-                echo "🔄 Updating $PACKAGE_NAME: $CURRENT_VERSION → $LATEST_VERSION"
-                yq e "(.contents.packages[] | select(. == \"$PACKAGE_NAME=$CURRENT_VERSION\")) = \"$PACKAGE_NAME=$LATEST_VERSION\"" -i "$APKO_FILE"
-                echo "${PACKAGE_NAME}=${LATEST_VERSION}" >> "$TMP_UPDATES"
-                echo "file_modified=true" >> "$GITHUB_OUTPUT"
-                echo $(($(cat "$TMP_COUNT") + 1)) > "$TMP_COUNT"
+              ">")
+                echo "⚠️  $PACKAGE_NAME current ($CURRENT_VERSION) is newer than available ($LATEST_VERSION)"
                 ;;
               *)
-                echo "⚠️  Invalid version comparison for $PACKAGE_NAME ($CURRENT_VERSION vs $LATEST_VERSION)"
+                echo "⚠️  Invalid comparison result for $PACKAGE_NAME"
                 ;;
             esac
 
             echo "::endgroup::"
-          done <<< "$MAIN_PACKAGES"
+          done <<< "$PINNED_PACKAGES"
 
-          UPDATED_COUNT=$(cat "$TMP_COUNT")
-          CHECKED_COUNT=$(cat "$TMP_CHECKED")
+          if [ -z "$UPDATED_LINES" ]; then
+            echo "✅ All packages are up-to-date"
+            exit 0
+          fi
 
-          if [ -s "$TMP_VERSIONS" ]; then
-            LATEST_VERSION=$(sort -Vr "$TMP_VERSIONS" | head -n1)
-            echo "latest_version=$LATEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "file_modified=true" >> "$GITHUB_OUTPUT"
 
-            SEMANTIC_VERSION=$(echo "$LATEST_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "$LATEST_VERSION")
+          semver_part() {
+            echo "$1" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' | cut -d. -f"$2"
+          }
 
-            if [ "$UPDATED_COUNT" -gt 0 ]; then
-              CURRENT_METADATA_VERSION=$(yq e '.version' "$METADATA_FILE")
-              if [ "$CURRENT_METADATA_VERSION" != "$SEMANTIC_VERSION" ]; then
-                echo "📝 Updating metadata.yaml version: $CURRENT_METADATA_VERSION → $SEMANTIC_VERSION"
-                yq e ".version = \"$SEMANTIC_VERSION\"" -i "$METADATA_FILE"
-              else
-                echo "ℹ️  Semantic version unchanged ($SEMANTIC_VERSION), skipping metadata.yaml update"
-              fi
+          if [ -n "$NEW_MAIN_VERSION" ] && [ -n "$CURRENT_MAIN_VERSION" ]; then
+            OLD_MAJOR=$(semver_part "$CURRENT_MAIN_VERSION" 1)
+            NEW_MAJOR=$(semver_part "$NEW_MAIN_VERSION" 1)
+            OLD_MINOR=$(semver_part "$CURRENT_MAIN_VERSION" 2)
+            NEW_MINOR=$(semver_part "$NEW_MAIN_VERSION" 2)
+
+            if [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then
+              COMMIT_TYPE="feat!"
+            elif [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
+              COMMIT_TYPE="feat"
+            else
+              COMMIT_TYPE="fix"
             fi
-          fi
 
-          if [ "$UPDATED_COUNT" -gt 0 ]; then
-            echo "✅ Updated $UPDATED_COUNT/$CHECKED_COUNT main packages:"
-            cat "$TMP_UPDATES"
-            echo "updated_packages<<EOF" >> "$GITHUB_OUTPUT"
-            cat "$TMP_UPDATES"          >> "$GITHUB_OUTPUT"
-            echo "EOF"                  >> "$GITHUB_OUTPUT"
-          elif [ "$CHECKED_COUNT" -gt 0 ]; then
-            echo "✅ All main packages are up-to-date"
+            DISPLAY_VERSION=$(echo "$NEW_MAIN_VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+([^-]|-[a-zA-Z][^-]*)*')
+
+            yq e ".version = \"${DISPLAY_VERSION}\"" -i "$METADATA_FILE"
+
+            COMMIT_TITLE="${COMMIT_TYPE}(${APP_NAME}): bump to ${DISPLAY_VERSION}"
           else
-            echo "ℹ️ No main packages were checked"
+            COMMIT_TITLE="chore(${APP_NAME}): bump dependencies"
           fi
 
-          rm -f "$TMP_UPDATES" "$TMP_VERSIONS" "$TMP_COUNT" "$TMP_CHECKED"
+          COMMIT_BODY=$(printf '%b' "$UPDATED_LINES" | sed '/^$/d')
+
+          echo "commit_title=${COMMIT_TITLE}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "commit_body<<EOF"
+            echo "$COMMIT_BODY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "📝 Commit: ${COMMIT_TITLE}"
+          echo "$COMMIT_BODY"
 
       - name: Create Pull Request
         if: steps.check_update.outputs.file_modified == 'true'
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
-          title: 'Update "${{ matrix.name }}" to ${{ steps.check_update.outputs.latest_version }}'
+          title: ${{ steps.check_update.outputs.commit_title }}
           body: |
-            ```
-            ${{ steps.check_update.outputs.updated_packages }}
-            ```
+            ${{ steps.check_update.outputs.commit_body }}
+          commit-message: |
+            ${{ steps.check_update.outputs.commit_title }}
+
+            ${{ steps.check_update.outputs.commit_body }}
           add-paths: |
             ${{ matrix.name }}/apko.yaml
             ${{ matrix.name }}/metadata.yaml
-          branch: 'update-${{ matrix.name }}'
-          commit-message: 'Update ${{ matrix.name }} to ${{ steps.check_update.outputs.latest_version }}'
+          branch: update-${{ matrix.name }}
           delete-branch: true
           sign-commits: true
