@@ -13,4 +13,5 @@ environment:
   PATH: /bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
 entrypoint:
-  command: rsync -avL /init/ /host/opt/cni/bin
+  command: rsync -avL /init/
+cmd: /host/opt/cni/bin
