@@ -11,7 +11,7 @@ contents:
   packages:
     - wolfi-baselayout
     - tzdata
-    - pgadmin4==9.13-r2
+    - pgadmin4==9.13-r3
     - catatonit
 accounts:
   groups:
@@ -27,9 +27,8 @@ accounts:
 environment:
   PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
-  PYTHONPATH: /usr/share/pgadmin4
-  PGADMIN_DISABLE_POSTFIX: "1"
+  PYTHONPATH: /usr/lib/pgadmin4
 volumes:
   - /var/lib/pgadmin
 entrypoint:
-  command: /usr/bin/catatonit -- /usr/lib/pgadmin4/venv/bin/gunicorn -c /usr/share/pgadmin4/gunicorn_config.py run_pgadmin:app
+  command: /usr/bin/catatonit -- /usr/lib/pgadmin4/venv/bin/gunicorn -c /usr/lib/pgadmin4/gunicorn_config.py run_pgadmin:app
