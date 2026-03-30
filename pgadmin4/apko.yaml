@@ -11,7 +11,7 @@ contents:
   packages:
     - wolfi-baselayout
     - tzdata
-    - pgadmin4==9.13-r3
+    - pgadmin4==9.13-r4
     - catatonit
 accounts:
   groups:
