@@ -90,40 +90,8 @@ jobs:
             core.info(`Final matrix: ${matrix}`);
             core.setOutput('matrix', matrix);
 
-  setup:
-    needs: prepare_matrix
-    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
-    runs-on: ubuntu-24.04
-    outputs:
-      cache-key: ${{ steps.cache_key.outputs.key }}
-    steps:
-      - name: Compute cache key
-        id: cache_key
-        run: echo "key=apko-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
-      - name: Restore Apko image
-        id: apko-restore
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: ${{ steps.cache_key.outputs.key }}
-          path: apko-sdk.tar
-          lookup-only: true
-
-      - name: Pull and save Apko image
-        if: steps.apko-restore.outputs.cache-hit != 'true'
-        run: |
-          docker pull cgr.dev/chainguard/apko:latest
-          docker save cgr.dev/chainguard/apko:latest > apko.tar
-
-      - name: Save Apko image to cache
-        if: steps.apko-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: ${{ steps.cache_key.outputs.key }}
-          path: apko.tar
-
   build:
-    needs: [prepare_matrix, setup]
+    needs: [prepare_matrix]
     if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-24.04
     permissions:
@@ -141,24 +109,11 @@ jobs:
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
-
-      - name: Retrieve cache key
-        id: cache_key
-        run: echo "key=apko-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
-      - name: Restore Apko image
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          key: ${{ steps.cache_key.outputs.key }}
-          path: apko.tar
-
-      - name: Load Apko image
-        run: docker load < apko.tar
-
+      
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Build and push ${{ matrix.name }} image
+      - name: Build and push image ${{ matrix.name }}:${{ matrix.full_version }}
         id: apko
         uses: d4rkfella/actions/apko-snapshot@main
         with:
