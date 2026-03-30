@@ -232,7 +232,6 @@ jobs:
 
       - name: Attest Grype results with Cosign
         env:
-          COSIGN_EXPERIMENTAL: "true"
           SARIF_FILE: ${{ steps.grype-scan.outputs.sarif }}
           SCAN_STARTED: ${{ steps.scan-start.outputs.date }}
           IMAGE_DIGEST: ${{ matrix.app.digest }}
@@ -291,7 +290,6 @@ jobs:
 
       - name: Verify Cosign attestation
         env:
-          COSIGN_EXPERIMENTAL: "true"
           IMAGE_DIGEST: ${{ matrix.app.digest }}
         run: |
           cat > vulnz.cue <<EOF
