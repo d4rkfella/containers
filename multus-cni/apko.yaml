@@ -11,11 +11,10 @@ contents:
   packages:
     - wolfi-baselayout
     - multus-cni=4.2.4-r5
-    - multus-cni-compat
 accounts:
   run-as: root:root
 environment:
   PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
   SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
 entrypoint:
-  command: /thin_entrypoint
+  command: thin_entrypoint
