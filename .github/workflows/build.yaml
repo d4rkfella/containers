@@ -127,14 +127,28 @@ jobs:
           annotations: "org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/containers/pkgs/container/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
           base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 
-      - name: Upload success marker
-        if: steps.apko.outcome == 'success'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - name: Upload Success Marker
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
-          name: success-marker-${{ matrix.name }}
-          path: |
-            ${{ toJson(fromJson(format(
-              '{{"name":"{0}","tag":"{1}","digest":"{2}"}}',
-              matrix.name, matrix.full_version, steps.apko.outputs.digest
-            ))) }}
-          retention-days: 1
+          script: |
+            const artifactName = `success-marker-${{ matrix.name }}`;
+            const fileName = `success-marker-${{ matrix.name }}.json`;
+            
+            const data = {
+              name: "${{ matrix.name }}",
+              tag: "${{ matrix.full_version }}",
+              digest: "${{ steps.apko.outputs.digest-index }}"
+            };
+            
+            const fs = require('fs');
+            fs.writeFileSync(fileName, JSON.stringify(data, null, 2));
+            
+            const artifact = require('@actions/artifact');
+            const client = artifact.create();
+            
+            await client.uploadArtifact(
+              artifactName, 
+              [fileName], 
+              '.', 
+              { retentionDays: 1 }
+            );
