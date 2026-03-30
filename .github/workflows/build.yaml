@@ -151,10 +151,10 @@ jobs:
             const data = {
               name,
               tag,
-              digest // ✅ already full ghcr.io/...@sha256:...
+              digest
             };
       
-            console.log("Writing marker:", data);
+            console.log("Writing success marker:", data);
       
             fs.writeFileSync(fileName, JSON.stringify(data, null, 2));
 
