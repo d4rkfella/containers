@@ -99,28 +99,28 @@ jobs:
     steps:
       - name: Compute cache key
         id: cache_key
-        run: echo "key=wolfi-sdk-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+        run: echo "key=apko-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore Wolfi SDK
-        id: sdk-restore
+      - name: Restore Apko image
+        id: apko-restore
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           key: ${{ steps.cache_key.outputs.key }}
-          path: wolfi-sdk.tar
+          path: apko-sdk.tar
           lookup-only: true
 
-      - name: Pull and cache Wolfi SDK
-        if: steps.sdk-restore.outputs.cache-hit != 'true'
+      - name: Pull and save Apko image
+        if: steps.apko-restore.outputs.cache-hit != 'true'
         run: |
-          docker pull ghcr.io/wolfi-dev/sdk:latest
-          docker save ghcr.io/wolfi-dev/sdk:latest > wolfi-sdk.tar
+          docker pull cgr.dev/chainguard/apko:latest
+          docker save cgr.dev/chainguard/apko:latest > apko.tar
 
-      - name: Save Wolfi SDK to cache
-        if: steps.sdk-restore.outputs.cache-hit != 'true'
+      - name: Save Apko image to cache
+        if: steps.apko-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           key: ${{ steps.cache_key.outputs.key }}
-          path: wolfi-sdk.tar
+          path: apko.tar
 
   build:
     needs: [prepare_matrix, setup]
@@ -144,16 +144,16 @@ jobs:
 
       - name: Retrieve cache key
         id: cache_key
-        run: echo "key=wolfi-sdk-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+        run: echo "key=apko-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore Wolfi SDK
+      - name: Restore Apko image
         uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           key: ${{ steps.cache_key.outputs.key }}
-          path: wolfi-sdk.tar
+          path: apko.tar
 
-      - name: Load Wolfi SDK
-        run: docker load < wolfi-sdk.tar
+      - name: Load Apko image
+        run: docker load < apko.tar
 
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
