@@ -58,34 +58,32 @@ jobs:
           script: |
             const fs   = require('fs');
             const path = require('path');
-
-            const files  = JSON.parse(process.env.CHANGED_FILES);
+            const yaml = require('js-yaml');
+          
+            const files   = JSON.parse(process.env.CHANGED_FILES);
             const include = [];
-
+          
             for (const file of files) {
               const dir      = path.dirname(file);
               const metaPath = path.join(dir, 'metadata.yaml');
-
+          
               if (!fs.existsSync(metaPath)) {
                 core.warning(`No metadata.yaml for '${dir}' — skipping`);
                 continue;
               }
-
-              const { execSync } = require('child_process');
-              const version = execSync(
-                `yq -r '.version // ""' "${metaPath}"`,
-                { encoding: 'utf8' }
-              ).trim();
-
+          
+              const meta    = yaml.load(fs.readFileSync(metaPath, 'utf8'));
+              const version = (meta?.version ?? '').toString().trim();
+          
               if (!version) {
                 core.warning(`No version field in '${metaPath}' — skipping`);
                 continue;
               }
-
+          
               core.info(`Resolved ${dir} → ${version}`);
               include.push({ name: dir, full_version: version });
             }
-
+          
             const matrix = JSON.stringify({ include });
             core.info(`Final matrix: ${matrix}`);
             core.setOutput('matrix', matrix);
