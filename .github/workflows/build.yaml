@@ -67,7 +67,7 @@ jobs:
               const metaPath = path.join(dir, 'metadata.yaml');
           
               if (!fs.existsSync(metaPath)) {
-                core.warning(`No metadata.yaml for '${dir}' — skipping`);
+                core.warning(`No metadata.yaml found for '${dir}' — skipping`);
                 continue;
               }
           
@@ -76,7 +76,7 @@ jobs:
               const version = match?.[1]?.trim() ?? '';
           
               if (!version) {
-                core.warning(`No version field in '${metaPath}' — skipping`);
+                core.warning(`No version field found in metadata file '${metaPath}' — skipping`);
                 continue;
               }
           
@@ -140,7 +140,7 @@ jobs:
             const digest = process.env.DIGEST;
       
             if (!digest) {
-              core.setFailed("Missing digest from apko step");
+              core.setFailed("Missing digest output from apko-snapshot step");
               return;
             }
       
