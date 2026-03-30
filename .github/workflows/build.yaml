@@ -58,7 +58,6 @@ jobs:
           script: |
             const fs   = require('fs');
             const path = require('path');
-            const yaml = require('js-yaml');
           
             const files   = JSON.parse(process.env.CHANGED_FILES);
             const include = [];
@@ -72,8 +71,9 @@ jobs:
                 continue;
               }
           
-              const meta    = yaml.load(fs.readFileSync(metaPath, 'utf8'));
-              const version = (meta?.version ?? '').toString().trim();
+              const content = fs.readFileSync(metaPath, 'utf8');
+              const match   = content.match(/^version:\s*["']?([^"'\n]+?)["']?\s*$/m);
+              const version = match?.[1]?.trim() ?? '';
           
               if (!version) {
                 core.warning(`No version field in '${metaPath}' — skipping`);
