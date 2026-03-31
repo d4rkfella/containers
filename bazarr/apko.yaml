@@ -12,7 +12,7 @@ contents:
     - wolfi-baselayout
     - catatonit
     - tzdata
-    - bazarr=1.5.7_beta11-r1
+    - bazarr=1.5.7_beta13-r0
 work-dir: /usr/lib/bazarr/app
 volumes: ["/config"]
 accounts:
