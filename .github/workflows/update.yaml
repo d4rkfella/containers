@@ -76,7 +76,6 @@ jobs:
           APK_ROOT: ${{ steps.apk.outputs.apk-root }}
         run: |
           set -euo pipefail
-          set -x
 
           APKO_FILE="${IMAGE_NAME}/apko.yaml"
           METADATA_FILE="${IMAGE_NAME}/metadata.yaml"
@@ -97,7 +96,7 @@ jobs:
           fi
 
           CURRENT_MAIN_VERSION=$(yq e '.version' "$METADATA_FILE" 2>/dev/null || echo "")
-          CURRENT_MAIN_PKG_VERSION=$(yq e ".contents.packages[] | select(test(\"^${MAIN_PKG}=\"))" "$APKO_FILE" 2>/dev/null | sed 's/^[^=]*=*//' || echo "")
+          CURRENT_MAIN_PKG_VERSION=$(yq e ".contents.packages[] | select(test(\"^${MAIN_PKG}=\"))" "$APKO_FILE" 2>/dev/null | cut -d= -f2 || echo "")
 
           PINNED_PACKAGES=$(yq e '.contents.packages[] | select(test("="))' "$APKO_FILE" 2>/dev/null || echo "")
           if [ -z "$PINNED_PACKAGES" ]; then
@@ -115,7 +114,7 @@ jobs:
             [ -z "$PIN" ] && continue
 
             PACKAGE_NAME="${PIN%%=*}"
-            CURRENT_VERSION="${PIN##*=}"
+            CURRENT_VERSION="${PIN#*=}"
 
             echo "::group::Checking $PACKAGE_NAME"
 
@@ -197,15 +196,15 @@ jobs:
           echo "file_modified=true" >> "$GITHUB_OUTPUT"
 
           # ── Determine commit type from semver bump ───────────────────────────
-          semver_part() { echo "$1" | grep -oE '^[0-9]+(\.[0-9]+){1,2}' | cut -d. -f"$2"; }
+          semver_part() { echo "$1" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' | cut -d. -f"$2"; }
 
           if [ -n "$NEW_MAIN_VERSION" ] && [ -n "$CURRENT_MAIN_VERSION" ]; then
             OLD_MAJOR=$(semver_part "$CURRENT_MAIN_VERSION" 1)
             NEW_MAJOR=$(semver_part "$NEW_MAIN_VERSION"     1)
             OLD_MINOR=$(semver_part "$CURRENT_MAIN_VERSION" 2)
             NEW_MINOR=$(semver_part "$NEW_MAIN_VERSION"     2)
-            OLD_PATCH=$(semver_part "$CURRENT_MAIN_VERSION" 3); OLD_PATCH="${OLD_PATCH:-0}"
-            NEW_PATCH=$(semver_part "$NEW_MAIN_VERSION"     3); NEW_PATCH="${NEW_PATCH:-0}"
+            OLD_PATCH=$(semver_part "$CURRENT_MAIN_VERSION" 3)
+            NEW_PATCH=$(semver_part "$NEW_MAIN_VERSION"     3)
 
             DISPLAY_VERSION="${NEW_MAIN_VERSION%-r*}"
             yq e ".version = \"${DISPLAY_VERSION}\"" -i "$METADATA_FILE"
