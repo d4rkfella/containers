@@ -115,7 +115,7 @@ jobs:
             [ -z "$PIN" ] && continue
 
             PACKAGE_NAME="${PIN%%=*}"
-            CURRENT_VERSION="${PIN#*=}"
+            CURRENT_VERSION="${PIN##*=}"
 
             echo "::group::Checking $PACKAGE_NAME"
 
