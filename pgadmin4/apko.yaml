@@ -31,4 +31,4 @@ environment:
 volumes:
   - /var/lib/pgadmin
 entrypoint:
-  command: command: /usr/bin/catatonit -- /usr/lib/pgadmin4/venv/bin/python3.13 -m gunicorn -c /usr/lib/pgadmin4/gunicorn_config.py run_pgadmin:app
+  command: /usr/bin/catatonit -- /usr/lib/pgadmin4/venv/bin/python3.13 -m gunicorn -c /usr/lib/pgadmin4/gunicorn_config.py run_pgadmin:app
