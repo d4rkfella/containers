@@ -76,6 +76,7 @@ jobs:
           APK_ROOT: ${{ steps.apk.outputs.apk-root }}
         run: |
           set -euo pipefail
+          set -x
 
           APKO_FILE="${IMAGE_NAME}/apko.yaml"
           METADATA_FILE="${IMAGE_NAME}/metadata.yaml"
