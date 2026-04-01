@@ -5,8 +5,8 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - wolfi-base
-    - curl
-    - fluent-plugin-prometheus=2.2.1
+    - fluent-plugin-prometheus=2.2.1-r0
+    - fluent-plugin-grafana-loki=1.2.20-r0
 
 accounts:
   groups:
