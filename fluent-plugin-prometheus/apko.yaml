@@ -5,6 +5,7 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - wolfi-base
+    - curl
     - fluent-plugin-prometheus=2.2.1
 
 accounts:
