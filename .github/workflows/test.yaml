@@ -1,0 +1,32 @@
+name: Test apko-renovator
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 3 * * *" # runs daily at 03:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  renovate-apko:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run apko-renovator
+        uses: d4rkfella/apko-renovator/action@main
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          arch: "x86_64,aarch64"
+          repositories: |
+            https://packages.wolfi.dev/os
+            https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
+          keys: |
+            https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+            https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
+          skip-verify: "false"
+          workdir: ${{ github.workspace }}
