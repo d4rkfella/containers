@@ -2,9 +2,6 @@ name: Test apko-renovator
 
 on:
   workflow_dispatch: {}
-  schedule:
-    - cron: "0 3 * * *" # runs daily at 03:00 UTC
-
 permissions:
   contents: write
   pull-requests: write
