@@ -116,6 +116,7 @@ jobs:
         uses: d4rkfella/actions/apko-snapshot@main
         with:
           config: ${{ matrix.name }}/apko.yaml
+          lockfile: ${{ matrix.name }}/apko.lock.json
           additional-tags: ${{ matrix.full_version }}
           archs: amd64,arm64
           slsa-attest: "true"
