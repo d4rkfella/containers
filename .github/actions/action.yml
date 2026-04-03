@@ -1,0 +1,57 @@
+name: 'Renovate'
+description: >
+  Resolves APK packages, regenerates locks, and opens PRs using the 
+  apko-renovator Go tool.
+branding:
+  icon: refresh-cw
+  color: blue
+
+inputs:
+  repo-token:
+    description: 'GitHub token with contents:write and pull-requests:write permissions'
+    required: true
+  arch:
+    description: 'Comma-separated list of architectures (e.g. x86_64,aarch64)'
+    required: false
+    default: "x86_64,aarch64"
+  repositories:
+    description: 'Newline-separated APK repository URLs'
+    required: false
+  keys:
+    description: 'Newline-separated APK signing key URLs'
+    required: false
+  skip-verify:
+    description: 'Set to "true" to disable APK index signature verification'
+    required: false
+    default: "false"
+  workdir:
+    description: 'Root directory to walk for apko.yaml files'
+    required: false
+    default: "."
+  version:
+    description: 'The version of the apko-renovator binary to install'
+    required: false
+    default: "latest"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup apko-renovator
+      uses: d4rkfella/apko-renovator/setup-apko-renovator@d5260126142bb656de95dd7b00a7681da8e10e6e # v0.1.0
+      with:
+        version: ${{ inputs.version }}
+        token: ${{ inputs.repo-token }}
+
+    - name: Run apko-renovator
+      shell: bash
+      env:
+        INPUT_REPO_TOKEN: ${{ inputs.repo-token }}
+        INPUT_ARCH: ${{ inputs.arch }}
+        INPUT_REPOSITORIES: ${{ inputs.repositories }}
+        INPUT_KEYS: ${{ inputs.keys }}
+        INPUT_SKIP_VERIFY: ${{ inputs.skip-verify }}
+        INPUT_WORKDIR: ${{ inputs.workdir }}
+        GITHUB_TOKEN: ${{ inputs.repo-token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        apko-renovator
