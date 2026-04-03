@@ -21,10 +21,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           arch: "x86_64,aarch64"
           repositories: |
-            https://packages.wolfi.dev/os
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
           keys: |
-            https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
           skip-verify: "false"
           workdir: ${{ github.workspace }}
