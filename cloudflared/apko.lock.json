@@ -1,0 +1,145 @@
+{
+  "version": "v1",
+  "config": {
+    "name": "/home/runner/work/containers/containers/cloudflared/apko.yaml",
+    "checksum": "sha256-dkCNbV6Kk6ozF+5uKuoLqGT/QcITvhl7wHSeFnccN7w="
+  },
+  "contents": {
+    "keyring": [
+      {
+        "name": "packages.wolfi.dev/os/wolfi-signing.rsa.pub",
+        "url": "https://packages.wolfi.dev/os/wolfi-signing.rsa.pub"
+      }
+    ],
+    "build_repositories": [],
+    "runtime_repositories": [],
+    "repositories": [
+      {
+        "name": "packages.wolfi.dev/os/x86_64",
+        "url": "https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz",
+        "architecture": "x86_64"
+      },
+      {
+        "name": "packages.wolfi.dev/os/aarch64",
+        "url": "https://packages.wolfi.dev/os/aarch64/APKINDEX.tar.gz",
+        "architecture": "aarch64"
+      }
+    ],
+    "packages": [
+      {
+        "name": "cloudflared",
+        "url": "https://packages.wolfi.dev/os/x86_64/cloudflared-2026.3.0-r4.apk",
+        "version": "2026.3.0-r4",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7710",
+          "checksum": "sha1-O0rpMzqbGjJl57GwzLKqzutbbpU="
+        },
+        "data": {
+          "range": "bytes=7711-10668321",
+          "checksum": "sha256-eXufrSNW8NtdqKEEyhszcP/qb0/u14VoABuR6/9rhn4="
+        },
+        "checksum": "Q1O0rpMzqbGjJl57GwzLKqzutbbpU="
+      },
+      {
+        "name": "wolfi-baselayout",
+        "url": "https://packages.wolfi.dev/os/x86_64/wolfi-baselayout-20230201-r28.apk",
+        "version": "20230201-r28",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-1874",
+          "checksum": "sha1-mwFbm0URZnDYSuI8Q2COPu6RIKM="
+        },
+        "data": {
+          "range": "bytes=1875-13893",
+          "checksum": "sha256-urnBTxcmLJV8GooxYvZ0bCpR5iTdeQJNWfELGes9HTg="
+        },
+        "checksum": "Q1mwFbm0URZnDYSuI8Q2COPu6RIKM="
+      },
+      {
+        "name": "ca-certificates-bundle",
+        "url": "https://packages.wolfi.dev/os/x86_64/ca-certificates-bundle-20251003-r4.apk",
+        "version": "20251003-r4",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7812",
+          "checksum": "sha1-CXd/XR9bBpc6r9Gs0mGjyQDU/H8="
+        },
+        "data": {
+          "range": "bytes=7813-139848",
+          "checksum": "sha256-lIuzB1FjFkXPCAZoYM3RAq44C8uYEuOGcSW2nKmVC9M="
+        },
+        "checksum": "Q1CXd/XR9bBpc6r9Gs0mGjyQDU/H8="
+      },
+      {
+        "name": "cloudflared",
+        "url": "https://packages.wolfi.dev/os/aarch64/cloudflared-2026.3.0-r4.apk",
+        "version": "2026.3.0-r4",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7740",
+          "checksum": "sha1-FtWI0NwPPVGUeBSRk3liFzXoUvs="
+        },
+        "data": {
+          "range": "bytes=7741-9730954",
+          "checksum": "sha256-iyl7HaRHwk404p81nhmSKFOJ6a0mG5xsDc3vvvM7r2k="
+        },
+        "checksum": "Q1FtWI0NwPPVGUeBSRk3liFzXoUvs="
+      },
+      {
+        "name": "wolfi-baselayout",
+        "url": "https://packages.wolfi.dev/os/aarch64/wolfi-baselayout-20230201-r28.apk",
+        "version": "20230201-r28",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-1904",
+          "checksum": "sha1-n4xA1Jg9t8XhPROt45YLbfKhU8g="
+        },
+        "data": {
+          "range": "bytes=1905-13920",
+          "checksum": "sha256-8EwAL2GPWjrGJyh8gj5hq3QTP6K1BliyryTLsatXI0A="
+        },
+        "checksum": "Q1n4xA1Jg9t8XhPROt45YLbfKhU8g="
+      },
+      {
+        "name": "ca-certificates-bundle",
+        "url": "https://packages.wolfi.dev/os/aarch64/ca-certificates-bundle-20251003-r4.apk",
+        "version": "20251003-r4",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7846",
+          "checksum": "sha1-ec6WTNgAxNG6j+aX24u0pwe17Qw="
+        },
+        "data": {
+          "range": "bytes=7847-139882",
+          "checksum": "sha256-S/cpu7ZulQhpDcC90pq0e7Iw0kgzCIIlOLlHb98PWOs="
+        },
+        "checksum": "Q1ec6WTNgAxNG6j+aX24u0pwe17Qw="
+      }
+    ]
+  }
+}
