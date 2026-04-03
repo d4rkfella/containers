@@ -25,5 +25,4 @@ jobs:
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
           keys: |
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
-          skip-verify: "false"
           workdir: ${{ github.workspace }}
