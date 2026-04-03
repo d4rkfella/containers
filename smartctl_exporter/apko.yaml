@@ -9,7 +9,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - smartctl_exporter=0.14.0-r4
+    - smartctl_exporter
 accounts:
   groups:
     - groupname: nonroot

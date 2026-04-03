@@ -6,7 +6,7 @@ contents:
   packages:
     - wolfi-baselayout
     - rsync
-    - cni-plugins-aws-k8s-compat=1.9.1-r2
+    - cni-plugins-aws-k8s-compat
 accounts:
   run-as: root:root
 environment:

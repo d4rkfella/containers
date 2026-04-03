@@ -10,7 +10,7 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - wolfi-baselayout
-    - actions-runner-controller=0.14.0-r2
+    - actions-runner-controller
 accounts:
   groups:
     - groupname: nonroot
