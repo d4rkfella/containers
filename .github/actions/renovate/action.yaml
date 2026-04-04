@@ -37,7 +37,7 @@ runs:
   using: "composite"
   steps:
     - name: Setup apko-renovator
-      uses: d4rkfella/apko-renovator/setup-apko-renovator@5479c1d03517ef41ede7409aa79eebfd975fb96c # v0.2.2
+      uses: d4rkfella/apko-renovator/setup-apko-renovator@d93662cd798dc7790fc61c615e0b83517ac51d05 # v0.2.4
       with:
         version: ${{ inputs.version }}
         token: ${{ inputs.repo-token }}
