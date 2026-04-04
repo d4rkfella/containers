@@ -465,22 +465,22 @@
       },
       {
         "name": "python-3.13-base",
-        "url": "https://packages.wolfi.dev/os/x86_64/python-3.13-base-3.13.12-r6.apk",
-        "version": "3.13.12-r6",
+        "url": "https://packages.wolfi.dev/os/x86_64/python-3.13-base-3.13.12-r7.apk",
+        "version": "3.13.12-r7",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11674",
-          "checksum": "sha1-vUrTETZq8DXbQvdHtt5kA0v/pGQ="
+          "range": "bytes=0-11776",
+          "checksum": "sha1-gxmdLCN5radPFIS1BYnqvHI1ob4="
         },
         "data": {
-          "range": "bytes=11675-11784981",
-          "checksum": "sha256-D+prBRyU0urvjpBGj0VNs6/NbJg2pq3HFT8ELpzKW60="
+          "range": "bytes=11777-11785325",
+          "checksum": "sha256-MT4tbsUeOgZnu3u/3nSe5dggu+1WxEwYGknZn4z7rB8="
         },
-        "checksum": "Q1vUrTETZq8DXbQvdHtt5kA0v/pGQ="
+        "checksum": "Q1gxmdLCN5radPFIS1BYnqvHI1ob4="
       },
       {
         "name": "py3.13-pyasn1",
@@ -692,80 +692,23 @@
         "checksum": "Q1AVlyFZhO++5jrY3Nga/bqISGUts="
       },
       {
-        "name": "libxcrypt",
-        "url": "https://packages.wolfi.dev/os/x86_64/libxcrypt-4.5.2-r2.apk",
-        "version": "4.5.2-r2",
+        "name": "cyrus-sasl-libs",
+        "url": "https://packages.wolfi.dev/os/x86_64/cyrus-sasl-libs-2.1.28-r48.apk",
+        "version": "2.1.28-r48",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7351",
-          "checksum": "sha1-Hd4hmmuoHyn1GTmAZseSSpDjRZg="
+          "range": "bytes=0-8024",
+          "checksum": "sha1-sGsNJVdDxz2IVHlqGWSSiSdUdTc="
         },
         "data": {
-          "range": "bytes=7352-102849",
-          "checksum": "sha256-K67qe8YxV8RpTxkq9quau99j8AB4VuUtWo0MwOIRdtk="
+          "range": "bytes=8025-74646",
+          "checksum": "sha256-6axlFay9jJ1eFbude89hJRd6uHzLTx7QocPlcHgLOj4="
         },
-        "checksum": "Q1Hd4hmmuoHyn1GTmAZseSSpDjRZg="
-      },
-      {
-        "name": "libcrypt1",
-        "url": "https://packages.wolfi.dev/os/x86_64/libcrypt1-2.43-r6.apk",
-        "version": "2.43-r6",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-12344",
-          "checksum": "sha1-ITTyliWrDDT42Z0CGN+cExi/wl0="
-        },
-        "data": {
-          "range": "bytes=12345-13882",
-          "checksum": "sha256-pmMY2jFsPlD6chhCOwMKb7tw0scCSiY7gKAw1QnZ48g="
-        },
-        "checksum": "Q1ITTyliWrDDT42Z0CGN+cExi/wl0="
-      },
-      {
-        "name": "heimdal-libs",
-        "url": "https://packages.wolfi.dev/os/x86_64/heimdal-libs-7.8.0-r46.apk",
-        "version": "7.8.0-r46",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-8425",
-          "checksum": "sha1-QJwkVgcOdvBjH/SdWt2WWA2y/0w="
-        },
-        "data": {
-          "range": "bytes=8426-1425007",
-          "checksum": "sha256-R7WH13f5zfleHqMUGHZ/X2BSkUuPuWdnW2uqRkEHOFU="
-        },
-        "checksum": "Q1QJwkVgcOdvBjH/SdWt2WWA2y/0w="
-      },
-      {
-        "name": "cyrus-sasl",
-        "url": "https://packages.wolfi.dev/os/x86_64/cyrus-sasl-2.1.28-r47.apk",
-        "version": "2.1.28-r47",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-7821",
-          "checksum": "sha1-OwU0Spebff3ziYY2umAebRpbv94="
-        },
-        "data": {
-          "range": "bytes=7822-276283",
-          "checksum": "sha256-soidkrF/cVKoMugB9ZyFTo5BxvXJ0Ds2V808onlnLL4="
-        },
-        "checksum": "Q1OwU0Spebff3ziYY2umAebRpbv94="
+        "checksum": "Q1sGsNJVdDxz2IVHlqGWSSiSdUdTc="
       },
       {
         "name": "libldap-2.6",
@@ -1434,22 +1377,22 @@
       },
       {
         "name": "python-3.13-base",
-        "url": "https://packages.wolfi.dev/os/aarch64/python-3.13-base-3.13.12-r6.apk",
-        "version": "3.13.12-r6",
+        "url": "https://packages.wolfi.dev/os/aarch64/python-3.13-base-3.13.12-r7.apk",
+        "version": "3.13.12-r7",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11706",
-          "checksum": "sha1-DEdJi2QrQvxfARDYnA3vcRG6K2Y="
+          "range": "bytes=0-11805",
+          "checksum": "sha1-47nAHiBhbsucjSLbgtDYuOjvJ4w="
         },
         "data": {
-          "range": "bytes=11707-11637315",
-          "checksum": "sha256-DQJtYorNVdtya5+ZM/SB7E6iNF0EqpNgCW07Qx+QWjY="
+          "range": "bytes=11806-11656879",
+          "checksum": "sha256-h1CL/z9xStfX52zxn6ApGG5S45YMGSmKsfKPbd7Zh5M="
         },
-        "checksum": "Q1DEdJi2QrQvxfARDYnA3vcRG6K2Y="
+        "checksum": "Q147nAHiBhbsucjSLbgtDYuOjvJ4w="
       },
       {
         "name": "py3.13-pyasn1",
@@ -1661,80 +1604,23 @@
         "checksum": "Q1a/opKHYYr8cRG5b+uqr/eTYDcgY="
       },
       {
-        "name": "libxcrypt",
-        "url": "https://packages.wolfi.dev/os/aarch64/libxcrypt-4.5.2-r2.apk",
-        "version": "4.5.2-r2",
+        "name": "cyrus-sasl-libs",
+        "url": "https://packages.wolfi.dev/os/aarch64/cyrus-sasl-libs-2.1.28-r48.apk",
+        "version": "2.1.28-r48",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7395",
-          "checksum": "sha1-McB8vGRCy1ZHRghUBm9SZPIfTbk="
+          "range": "bytes=0-8070",
+          "checksum": "sha1-iCAnoVNoYAceUjJ7bsXZZ2/mIsw="
         },
         "data": {
-          "range": "bytes=7396-104689",
-          "checksum": "sha256-QLE9M55RoGXYiY9e9OvdfHbk3gv0QUTsipcIMQ2ZRgQ="
+          "range": "bytes=8071-76162",
+          "checksum": "sha256-prCpavpOBeDprjfb9h0K7r/Y93YtOg1psXYEYX7DV+4="
         },
-        "checksum": "Q1McB8vGRCy1ZHRghUBm9SZPIfTbk="
-      },
-      {
-        "name": "libcrypt1",
-        "url": "https://packages.wolfi.dev/os/aarch64/libcrypt1-2.43-r6.apk",
-        "version": "2.43-r6",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-12417",
-          "checksum": "sha1-9G2f3re2riDzRP2YVQ3B58lHTYA="
-        },
-        "data": {
-          "range": "bytes=12418-13955",
-          "checksum": "sha256-98hNrydtpJetTbfaCfa9acqatuOYrcD7s57s3CwqRAo="
-        },
-        "checksum": "Q19G2f3re2riDzRP2YVQ3B58lHTYA="
-      },
-      {
-        "name": "heimdal-libs",
-        "url": "https://packages.wolfi.dev/os/aarch64/heimdal-libs-7.8.0-r46.apk",
-        "version": "7.8.0-r46",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-8459",
-          "checksum": "sha1-lzIcHyKO3z245KrdZgKldkaXC/s="
-        },
-        "data": {
-          "range": "bytes=8460-1433012",
-          "checksum": "sha256-83jsoiED6hRev49xW5zs7iz922Y6aU4qGED91jJQ0Nc="
-        },
-        "checksum": "Q1lzIcHyKO3z245KrdZgKldkaXC/s="
-      },
-      {
-        "name": "cyrus-sasl",
-        "url": "https://packages.wolfi.dev/os/aarch64/cyrus-sasl-2.1.28-r47.apk",
-        "version": "2.1.28-r47",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-7850",
-          "checksum": "sha1-+RVkzEFSCVfHmEEyk3VLXbvjDac="
-        },
-        "data": {
-          "range": "bytes=7851-309449",
-          "checksum": "sha256-rkziRehadwhyl8z8ii6rfIXk0BYWR24TMSjbg2sEnBY="
-        },
-        "checksum": "Q1+RVkzEFSCVfHmEEyk3VLXbvjDac="
+        "checksum": "Q1iCAnoVNoYAceUjJ7bsXZZ2/mIsw="
       },
       {
         "name": "libldap-2.6",
