@@ -20,7 +20,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           arch: "x86_64,aarch64"
-          skip-verify: "true"
+          skip-verify: "false"
           repositories: |
             https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
           keys: |
