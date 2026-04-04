@@ -28,22 +28,22 @@
     "packages": [
       {
         "name": "cloudflared",
-        "url": "https://packages.wolfi.dev/os/x86_64/cloudflared-2026.3.0-r4.apk",
-        "version": "2026.3.0-r4",
+        "url": "https://packages.wolfi.dev/os/x86_64/cloudflared-2026.3.0-r6.apk",
+        "version": "2026.3.0-r6",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7710",
-          "checksum": "sha1-O0rpMzqbGjJl57GwzLKqzutbbpU="
+          "range": "bytes=0-7985",
+          "checksum": "sha1-SgejwgNfWTAZnoKKmV/p2St3XVw="
         },
         "data": {
-          "range": "bytes=7711-10668321",
-          "checksum": "sha256-eXufrSNW8NtdqKEEyhszcP/qb0/u14VoABuR6/9rhn4="
+          "range": "bytes=7986-10758455",
+          "checksum": "sha256-VnQ0JkskhLUMezSKdSdzOpVfMfKw54VGFDq2UbxU8J8="
         },
-        "checksum": "Q1O0rpMzqbGjJl57GwzLKqzutbbpU="
+        "checksum": "Q1SgejwgNfWTAZnoKKmV/p2St3XVw="
       },
       {
         "name": "wolfi-baselayout",
@@ -85,22 +85,22 @@
       },
       {
         "name": "cloudflared",
-        "url": "https://packages.wolfi.dev/os/aarch64/cloudflared-2026.3.0-r4.apk",
-        "version": "2026.3.0-r4",
+        "url": "https://packages.wolfi.dev/os/aarch64/cloudflared-2026.3.0-r6.apk",
+        "version": "2026.3.0-r6",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7740",
-          "checksum": "sha1-FtWI0NwPPVGUeBSRk3liFzXoUvs="
+          "range": "bytes=0-8014",
+          "checksum": "sha1-RJkvJDPBOnMyiv6FN7CoGtK0N60="
         },
         "data": {
-          "range": "bytes=7741-9730954",
-          "checksum": "sha256-iyl7HaRHwk404p81nhmSKFOJ6a0mG5xsDc3vvvM7r2k="
+          "range": "bytes=8015-9823111",
+          "checksum": "sha256-S1cR1o7IpaqP7u1I8fTrNArBsGnK1eYJKp/KbFHn3II="
         },
-        "checksum": "Q1FtWI0NwPPVGUeBSRk3liFzXoUvs="
+        "checksum": "Q1RJkvJDPBOnMyiv6FN7CoGtK0N60="
       },
       {
         "name": "wolfi-baselayout",
