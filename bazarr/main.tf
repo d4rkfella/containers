@@ -35,7 +35,7 @@ resource "apko_build" "this" {
 }
 
 resource "cosign_sign" "this" {
-  image = apko_publish.this.index_type == "" ? apko_publish.this.image_ref : apko_publish.this.index_ref
+  image    = apko_build.this.image_ref
 }
 
 resource "cosign_attest" "this" {
