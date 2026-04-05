@@ -96,7 +96,8 @@ jobs:
           GEN_VER: v2.1.0
           GEN_BIN: slsa-generator-container-linux-amd64
           GEN_SHA: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
-          GITHUB_CONTEXT: ${{ toJson(github) }}
+          GITHUB_CONTEXT: "${{ toJSON(github) }}"
+          VARS_CONTEXT: "{}"
         run: |
           gh release download "$GEN_VER" -R slsa-framework/slsa-github-generator -p "$GEN_BIN"
           echo "$GEN_SHA  $GEN_BIN" | sha256sum --strict --check
