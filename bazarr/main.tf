@@ -33,15 +33,33 @@ resource "apko_build" "this" {
   configs = data.apko_config.this.configs
 }
 
+locals {
+  archs = toset(concat(["index"], data.apko_config.this.config.archs))
+}
+
+resource "cosign_sign" "this" {
+  for_each = local.archs
+  image    = apko_build.this.sboms[each.key].digest
+  conflict = "REPLACE"
+}
+
+resource "cosign_attest" "sbom" {
+  for_each = local.archs
+  image    = cosign_sign.this[each.key].signed_ref
+
+  predicates {
+    type = "https://spdx.dev/Document"
+    file = {
+      path   = apko_build.this.sboms[each.key].predicate_path
+      sha256 = apko_build.this.sboms[each.key].predicate_sha256
+    }
+  }
+}
+
 resource "oci_tag" "this" {
   for_each   = toset(data.apko_tags.this.tags)
   digest_ref = apko_build.this.image_ref
   tag        = each.value
-}
-
-resource "cosign_sign" "this" {
-  image      = apko_build.this.image_ref
-  conflict   = "REPLACE"
 }
 
 output "image_ref" {
