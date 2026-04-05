@@ -93,9 +93,15 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           set +e
-          terraform plan -no-color -detailed-exitcode -out=tfplan
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          terraform plan -no-color -detailed-exitcode -out=tfplan > plan_output.txt
+          EXIT_CODE=$?
           set -e
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo $EXIT_CODE
+
+          echo "PLAN_STDOUT<<EOF" >> $GITHUB_ENV
+          head -c 50000 plan_output.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Pull Request
         if: steps.tf-plan.outputs.exitcode == '2'
@@ -109,7 +115,7 @@ jobs:
             
             #### Plan Output:
             ```hcl
-            ${{ steps.tf-plan.outputs.stdout }}
+            ${{ env.PLAN_STDOUT }}
             ```
           branch: "terraform-plan/${{ matrix.folder }}"
           base: main
