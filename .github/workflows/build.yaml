@@ -27,13 +27,17 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
+            
+            // List all subfolders in repo root
             const folders = fs.readdirSync('.').filter(f => fs.statSync(f).isDirectory());
+            
+            // Only keep folders that contain main.tf
             const imageFolders = folders.filter(f => fs.existsSync(path.join(f, 'main.tf')));
+            
             console.log('Discovered image folders:', imageFolders);
-            return JSON.stringify(imageFolders);
-        result-encoding: string
-        outputs:
-          folders: ${{ steps.set-matrix.outputs.result }}
+
+            // Set the output for matrix
+            core.setOutput('folders', JSON.stringify(imageFolders));
 
   build:
     needs: discover-terraform-configs
