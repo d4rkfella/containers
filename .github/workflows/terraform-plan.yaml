@@ -94,14 +94,16 @@ jobs:
         run: |
           set +e
           terraform plan -no-color -detailed-exitcode -out=tfplan > plan_output.txt
-          EXIT_CODE=$?
+          EXIT_CODE=${PIPESTATUS[0]}
           set -e
+          
+          echo "Terraform Plan Exit Code: $EXIT_CODE"
           echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-          echo $EXIT_CODE
-
+          
           echo "PLAN_STDOUT<<EOF" >> $GITHUB_ENV
           head -c 50000 plan_output.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+          
           cat plan_output.txt
 
       - name: Create Pull Request
