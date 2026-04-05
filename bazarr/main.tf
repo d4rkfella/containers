@@ -49,7 +49,10 @@ resource "cosign_attest" "sbom" {
 
   predicates {
     type = "https://spdx.dev/Document"
-    json = file(apko_build.this.sboms[each.key].predicate_path)
+    file = {
+      path   = apko_build.this.sboms[each.key].predicate_path
+      sha256 = apko_build.this.sboms[each.key].predicate_sha256
+    }
   }
 }
 
