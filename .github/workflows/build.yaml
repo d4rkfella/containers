@@ -24,17 +24,14 @@ jobs:
       - name: Setup Cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
 
-      - name: Setup Crane
-        uses: iarekylew00t/crane-installer@65372ffaef057f1714fed388fc3df3ad2c441aef # v4.0.10
-
       - name: Setup QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
-          terraform_wrapper: true
-      
+          terraform_wrapper: false
+
       - name: Login to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
@@ -43,7 +40,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Terraform Apply
-        id: tf
         working-directory: ${{ matrix.name }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -54,24 +50,31 @@ jobs:
 
       - name: Extract Artifact Metadata
         id: meta
-        shell: bash
         working-directory: ${{ matrix.name }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          SBOMS=$(terraform output -json sboms)
-          echo "sboms=${SBOMS}" >> "$GITHUB_OUTPUT"
+          # index ref e.g. ghcr.io/d4rkfella/bazarr@sha256:abc...
+          image_ref=$(terraform output -raw image_ref)
 
-      - name: 🛡️ Generate and Attest SLSA Provenance
-        shell: bash
+          # per-arch refs as JSON object e.g. {"amd64":"ghcr.io/...@sha256:...","arm64":"..."}
+          arch_digests=$(terraform output -json arch_digests)
+
+          # all refs as a JSON array for SLSA — index + all arches
+          all_refs=$(echo "$arch_digests" | jq -c --arg index "$image_ref" '[ $index ] + [ .[] ]')
+
+          echo "image_ref=${image_ref}" >> "$GITHUB_OUTPUT"
+          echo "all_refs=${all_refs}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and Attest SLSA Provenance
         env:
-          SBOMS: ${{ steps.meta.outputs.sboms }}
-          GH_TOKEN: "${{ github.token }}"
+          ALL_REFS: ${{ steps.meta.outputs.all_refs }}
+          GH_TOKEN: ${{ github.token }}
           GEN_VER: v2.1.0
           GEN_BIN: slsa-generator-container-linux-amd64
           GEN_SHA: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
-          GITHUB_CONTEXT: "${{ toJSON(github) }}"
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
           VARS_CONTEXT: "{}"
         run: |
           gh release download "$GEN_VER" -R slsa-framework/slsa-github-generator -p "$GEN_BIN"
@@ -80,7 +83,7 @@ jobs:
 
           ./"$GEN_BIN" generate --predicate="provenance.json"
 
-          echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
-            echo "Attesting SLSA for $digest"
-            cosign attest --yes --type slsaprovenance --predicate="provenance.json" "$digest"
+          echo "$ALL_REFS" | jq -r '.[]' | while read -r ref; do
+            echo "Attesting SLSA for $ref"
+            cosign attest --yes --type slsaprovenance --predicate="provenance.json" "$ref"
           done
