@@ -22,7 +22,7 @@ provider "apko" {
 module "apko" {
   source  = "chainguard-dev/apko/publisher"
   config = file("${path.module}/apko.yaml")
-  target_repository = "ghcr.io/d4rkfella/${basename(path.module)}"
+  target_repository = "ghcr.io/d4rkfella/${basename(abspath(path.module))}"
 }
 
 data "apko_tags" "this" {
