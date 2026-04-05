@@ -19,7 +19,6 @@ provider "apko" {
 
 data "apko_config" "this" {
   config_contents = file("${path.module}/apko.yaml")
-    lock_file       = "${path.module}/apko.lock.json"
 }
 
 data "apko_tags" "this" {
