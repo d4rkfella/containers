@@ -84,7 +84,7 @@ jobs:
             fi
           done
 
-      - name: 🛡️ SLSA: Generate and Attest Provenance
+      - name: 🛡️ Generate and Attest SLSA Provenance
         shell: bash
         env:
           SBOMS: ${{ steps.meta.outputs.sboms }}
