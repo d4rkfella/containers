@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # Required for Keyless signing
-  packages: write   # To push sigs/atts to GHCR
-  contents: read    # To read repo and SBOMs
+  id-token: write
+  packages: write
+  contents: read
 
 jobs:
   build:
@@ -62,7 +62,6 @@ jobs:
         run: |
           SBOMS=$(terraform output -json sboms)
           echo "sboms=${SBOMS}" >> "$GITHUB_OUTPUT"
-          echo "image_name=ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}" >> "$GITHUB_OUTPUT"
 
       - name: 🔐 Sign All Artifacts
         shell: bash
@@ -70,10 +69,9 @@ jobs:
           SBOMS: ${{ steps.meta.outputs.sboms }}
           IMAGE: ${{ steps.meta.outputs.image_name }}
         run: |
-          # Sign every digest (Index + Arches) returned by the provider
           echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
-            echo "Signing $IMAGE@$digest"
-            cosign sign --yes "$IMAGE@$digest" \
+            echo "Signing $digest"
+            cosign sign --yes "$digest" \
               -a sha=${{ github.sha }} \
               -a run_id=${{ github.run_id }} \
               -a run_attempt=${{ github.run_attempt }}
@@ -85,11 +83,10 @@ jobs:
           SBOMS: ${{ steps.meta.outputs.sboms }}
           IMAGE: ${{ steps.meta.outputs.image_name }}
         run: |
-          # Attest the architecture-specific SBOMs to their respective digests
           echo "$SBOMS" | jq -r 'to_entries[] | "\(.value.digest) \(.value.predicate_path)"' | while read -r digest path; do
             if [ -f "$path" ]; then
               echo "Attesting SBOM for $digest"
-              cosign attest --yes --type spdxjson --predicate "$path" "$IMAGE@$digest"
+              cosign attest --yes --type spdxjson --predicate "$path" "$digest"
             fi
           done
 
@@ -99,21 +96,17 @@ jobs:
           SBOMS: ${{ steps.meta.outputs.sboms }}
           IMAGE: ${{ steps.meta.outputs.image_name }}
           GH_TOKEN: "${{ github.token }}"
-          # Pinned generator details from your original workflow
           GEN_VER: v2.1.0
           GEN_BIN: slsa-generator-container-linux-amd64
           GEN_SHA: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
         run: |
-          # Download and verify the SLSA generator
           gh release download "$GEN_VER" -R slsa-framework/slsa-github-generator -p "$GEN_BIN"
           echo "$GEN_SHA  $GEN_BIN" | sha256sum --strict --check
           chmod +x "$GEN_BIN"
-          
-          # Generate the Provenance predicate
+
           ./"$GEN_BIN" generate --predicate="provenance.json"
 
-          # Attest the SLSA provenance to every image digest in the tree
           echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
             echo "Attesting SLSA for $digest"
-            cosign attest --yes --type slsaprovenance --predicate="provenance.json" "$IMAGE@$digest"
+            cosign attest --yes --type slsaprovenance --predicate="provenance.json" "$digest"
           done
