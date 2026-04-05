@@ -31,6 +31,7 @@ resource "apko_build" "this" {
   repo    = "ghcr.io/d4rkfella/bazarr"
   config  = data.apko_config.this.config
   configs = data.apko_config.this.configs
+  archs  = ["amd64", "arm64"]
 }
 
 output "sboms" {
