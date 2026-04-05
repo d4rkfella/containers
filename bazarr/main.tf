@@ -31,12 +31,7 @@ resource "apko_build" "this" {
   repo    = "ghcr.io/d4rkfella/bazarr"
   config  = data.apko_config.this.config
   configs = data.apko_config.this.configs
-}
-
-resource "apko_publish" "this" {
-  config_contents = data.apko_config.this.config_contents
-  repo            = "ghcr.io/d4rkfella/bazarr"
-  tags            = data.apko_tags.this.tags 
+  additional_tags = data.apko_tags.this.tags
 }
 
 resource "cosign_sign" "this" {
