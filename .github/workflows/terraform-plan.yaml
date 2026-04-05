@@ -102,6 +102,7 @@ jobs:
           echo "PLAN_STDOUT<<EOF" >> $GITHUB_ENV
           head -c 50000 plan_output.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+          cat plan_output.txt
 
       - name: Create Pull Request
         if: steps.tf-plan.outputs.exitcode == '2'
