@@ -56,5 +56,11 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          terraform init -backend-config="../common_backend.conf"
+          terraform init \
+            -backend-config="bucket=terraform-state" \
+            -backend-config="key=${{ matrix.folder }}/terraform.tfstate" \
+            -backend-config="region=auto" \
+            -backend-config="endpoints.s3=https://2bd80478faceecf0d53c596cd910805f.r2.cloudflarestorage.com" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="use_path_style=true"
           terraform apply -auto-approve

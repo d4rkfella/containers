@@ -1,34 +1,7 @@
-terraform {
-  required_providers {
-    apko = { source = "chainguard-dev/apko" }
-    oci = { source = "chainguard-dev/oci"}
-  }
-
-  backend "s3" {
-    key = "bazarr/terraform.tfstate"
-  }
-}
-
-provider "apko" {
-  default_archs = ["amd64", "arm64"]
-
-  extra_keyring = [
-    "https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub"
-  ]
-
-  build_repositories = [
-    "https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main"
-  ]
-
-  extra_packages = ["wolfi-baselayout"]
-}
-
 module "apko" {
   source  = "chainguard-dev/apko/publisher"
   version = "0.0.18"
-
   config = file("${path.module}/apko.yaml")
-
   target_repository = "ghcr.io/d4rkfella/bazarr"
 }
 
