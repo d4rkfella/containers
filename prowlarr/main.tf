@@ -11,6 +11,8 @@ terraform {
 provider "apko" {
   default_archs = ["amd64", "arm64"]
 
+  plan_offline = false
+
   extra_keyring = [
     "https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub"
   ]
