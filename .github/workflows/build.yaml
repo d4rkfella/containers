@@ -64,5 +64,5 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          terraform init -backend-config="../common_backend.conf -backend-config="key=${{ matrix.folder }}/terraform.tfstate""
+          terraform init -backend-config="../common_backend.conf"
           terraform apply -auto-approve
