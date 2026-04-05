@@ -27,7 +27,7 @@ module "apko" {
 
 data "apko_tags" "this" {
   config         = module.apko.config
-  target_package = "bazarr"
+  target_package = "actions-runner-controller"
 }
 
 resource "oci_tag" "this" {

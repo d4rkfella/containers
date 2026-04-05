@@ -36,6 +36,7 @@ jobs:
     needs: discover-terraform-configs
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         folder: ${{ fromJSON(needs.discover-terraform-configs.outputs.folders) }}
     steps:
@@ -56,5 +57,5 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          terraform init -backend-config="../common_backend.conf"
+          terraform init -backend-config="../common_backend.conf -backend-config="key=${{ matrix.folder }}/terraform.tfstate""
           terraform apply -auto-approve

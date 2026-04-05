@@ -27,7 +27,7 @@ module "apko" {
 
 data "apko_tags" "this" {
   config         = module.apko.config
-  target_package = "bazarr"
+  target_package = "seerr"
 }
 
 resource "oci_tag" "this" {
