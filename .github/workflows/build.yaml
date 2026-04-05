@@ -1,6 +1,8 @@
-name: Build, Sign, and Attest (Hardened)
+name: Terraform CI
 
 on:
+  schedule:
+    - cron: '0 0 * * *'   # Run daily at midnight UTC
   push:
     branches: [main]
   workflow_dispatch:
@@ -11,36 +13,40 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  discover-terraform-configs:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        name: [bazarr]
-
+    outputs:
+      folders: ${{ steps.set-matrix.outputs.folders }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup Cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+      - id: set-matrix
+        run: |
+          folders=$(find . -type f -name "main.tf" -exec dirname {} \; | sort -u)
+          folders=$(echo $folders | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "folders=$folders" >> $GITHUB_OUTPUT
 
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+  build:
+    needs: discover-terraform-configs
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        folder: ${{ fromJSON(needs.discover-terraform-configs.outputs.folders) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
           terraform_wrapper: false
 
-      - name: Login to GHCR
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
 
       - name: Terraform Apply
-        working-directory: ${{ matrix.name }}
+        working-directory: ${{ matrix.folder }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
