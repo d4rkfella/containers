@@ -1,6 +1,6 @@
 terraform {
   required_providers {
-    apko = { source = "d4rkfella/apko" }
+    apko = { source = "chainguard-dev/apko" }
   }
   backend "s3" {
     key = "bazarr/terraform.tfstate"
@@ -31,7 +31,6 @@ resource "apko_build" "this" {
   repo    = "ghcr.io/d4rkfella/bazarr"
   config  = data.apko_config.this.config
   configs = data.apko_config.this.configs
-  archs  = ["amd64", "arm64"]
 }
 
 output "sboms" {
