@@ -63,31 +63,6 @@ jobs:
           SBOMS=$(terraform output -json sboms)
           echo "sboms=${SBOMS}" >> "$GITHUB_OUTPUT"
 
-      - name: 🔐 Sign All Artifacts
-        shell: bash
-        env:
-          SBOMS: ${{ steps.meta.outputs.sboms }}
-        run: |
-          echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
-            echo "Signing $digest"
-            cosign sign --yes "$digest" \
-              -a sha=${{ github.sha }} \
-              -a run_id=${{ github.run_id }} \
-              -a run_attempt=${{ github.run_attempt }}
-          done
-
-      - name: 📝 Attest SBOMs (SPDX)
-        shell: bash
-        env:
-          SBOMS: ${{ steps.meta.outputs.sboms }}
-        run: |
-          echo "$SBOMS" | jq -r 'to_entries[] | "\(.value.digest) \(.value.predicate_path)"' | while read -r digest path; do
-            if [ -f "$path" ]; then
-              echo "Attesting SBOM for $digest"
-              cosign attest --yes --type spdxjson --predicate "$path" "$digest"
-            fi
-          done
-
       - name: 🛡️ Generate and Attest SLSA Provenance
         shell: bash
         env:
