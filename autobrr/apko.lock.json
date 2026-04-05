@@ -48,7 +48,7 @@
       {
         "name": "catatonit",
         "url": "https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main/x86_64/catatonit-0.2.1-r1.apk",
-        "version": "0.2.1-r1",
+        "version": "0.2.0-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "bytes=0-664",

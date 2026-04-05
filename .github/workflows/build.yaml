@@ -1,165 +1,110 @@
-name: Build Docker Images
+name: Build, Sign, and Attest (Hardened)
 
 on:
-  workflow_dispatch:
-    inputs:
-      app_name:
-        description: 'Required: Name of a specific app to build.'
-        required: true
-        type: string
   push:
-    branches:
-      - main
-    paths:
-      - '**/apko.lock.json'
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  id-token: write   # Required for Keyless signing
+  packages: write   # To push sigs/atts to GHCR
+  contents: read    # To read repo and SBOMs
 
 jobs:
-  prepare_matrix:
-    runs-on: ubuntu-24.04
-    outputs:
-      matrix: ${{ steps.build_matrix.outputs.matrix }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Filter changed apko files
-        id: filter
-        if: github.event_name == 'push'
-        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
-        with:
-          list-files: json
-          filters: |
-            apko:
-              - added|modified: '**/apko.lock.json'
-
-      - name: Validate dispatch input
-        id: dispatch
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          APP="${{ github.event.inputs.app_name }}"
-          if [[ ! -f "${APP}/apko.yaml" ]]; then
-            echo "::error::No apko.yaml found in directory '${APP}'"
-            exit 1
-          fi
-          echo "files=[\"${APP}/apko.yaml\"]" >> "$GITHUB_OUTPUT"
-
-      - name: Build matrix
-        id: build_matrix
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-        env:
-          CHANGED_FILES: ${{ steps.filter.outputs.apko_files || steps.dispatch.outputs.files || '[]' }}
-        with:
-          script: |
-            const fs   = require('fs');
-            const path = require('path');
-          
-            const files   = JSON.parse(process.env.CHANGED_FILES);
-            const include = [];
-          
-            for (const file of files) {
-              const dir      = path.dirname(file);
-              const metaPath = path.join(dir, 'metadata.yaml');
-          
-              if (!fs.existsSync(metaPath)) {
-                core.warning(`No metadata.yaml found for '${dir}' — skipping`);
-                continue;
-              }
-          
-              const content = fs.readFileSync(metaPath, 'utf8');
-              const match   = content.match(/^version:\s*["']?([^"'\n]+?)["']?\s*$/m);
-              const version = match?.[1]?.trim() ?? '';
-          
-              if (!version) {
-                core.warning(`No version field found in metadata file '${metaPath}' — skipping`);
-                continue;
-              }
-          
-              core.info(`Resolved ${dir} → ${version}`);
-              include.push({ name: dir, full_version: version });
-            }
-          
-            const matrix = JSON.stringify({ include });
-            core.info(`Final matrix: ${matrix}`);
-            core.setOutput('matrix', matrix);
-
   build:
-    needs: [prepare_matrix]
-    if: ${{ fromJson(needs.prepare_matrix.outputs.matrix).include[0] != null }}
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      packages: write
-      contents: read
-      security-events: write
-
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare_matrix.outputs.matrix) }}
+      matrix:
+        name: [bazarr]
 
     steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
-        with:
-          egress-policy: audit
-      
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Build and push image ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ matrix.full_version }}
-        id: apko
-        uses: d4rkfella/actions/apko-snapshot@main
-        with:
-          config: ${{ matrix.name }}/apko.yaml
-          lockfile: ${{ matrix.name }}/apko.lock.json
-          additional-tags: ${{ matrix.full_version }}
-          archs: amd64,arm64
-          slsa-attest: "true"
-          sbom-attest: "true"
-          build-repository-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main
-          keyring-append: https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub
-          annotations: "org.opencontainers.image.title:${{ matrix.name }},org.opencontainers.image.url:https://ghcr.io/${{ github.repository_owner }}/containers/pkgs/container/${{ matrix.name }},org.opencontainers.image.version:${{ matrix.full_version }},org.opencontainers.image.revision:${{ github.sha }},org.opencontainers.image.vendor:${{ github.repository_owner }}"
-          base-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+      - name: Setup Cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
 
-      - name: Create success marker
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+      - name: Setup Crane
+        uses: iarekylew00t/crane-installer@65372ffaef057f1714fed388fc3df3ad2c441aef # v4.0.10
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
+        with:
+          terraform_wrapper: true
+
+      - name: Terraform Apply
+        id: tf
+        working-directory: ${{ matrix.name }}
         env:
-          NAME: ${{ matrix.name }}
-          TAG: ${{ matrix.full_version }}
-          DIGEST: ${{ steps.apko.outputs.digest }}
-        with:
-          script: |
-            const fs = require('fs');
-      
-            const name = process.env.NAME;
-            const tag = process.env.TAG;
-            const digest = process.env.DIGEST;
-      
-            if (!digest) {
-              core.setFailed("Missing digest output from apko-snapshot step");
-              return;
-            }
-      
-            const fileName = `success-marker-${name}.json`;
-      
-            const data = {
-              name,
-              tag,
-              digest
-            };
-      
-            console.log("Writing success marker:", data);
-      
-            fs.writeFileSync(fileName, JSON.stringify(data, null, 2));
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          terraform init -backend-config="../common_backend.conf"
+          terraform apply -auto-approve
 
-      - name: Upload success marker
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: success-marker-${{ matrix.name }}
-          path: success-marker-${{ matrix.name }}.json
-          retention-days: 1
+      - name: Extract Artifact Metadata
+        id: meta
+        shell: bash
+        working-directory: ${{ matrix.name }}
+        run: |
+          SBOMS=$(terraform output -json sboms)
+          echo "sboms=${SBOMS}" >> "$GITHUB_OUTPUT"
+          echo "image_name=ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+
+      - name: 🔐 Sign All Artifacts
+        shell: bash
+        env:
+          SBOMS: ${{ steps.meta.outputs.sboms }}
+          IMAGE: ${{ steps.meta.outputs.image_name }}
+        run: |
+          # Sign every digest (Index + Arches) returned by the provider
+          echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
+            echo "Signing $IMAGE@$digest"
+            cosign sign --yes "$IMAGE@$digest" \
+              -a sha=${{ github.sha }} \
+              -a run_id=${{ github.run_id }} \
+              -a run_attempt=${{ github.run_attempt }}
+          done
+
+      - name: 📝 Attest SBOMs (SPDX)
+        shell: bash
+        env:
+          SBOMS: ${{ steps.meta.outputs.sboms }}
+          IMAGE: ${{ steps.meta.outputs.image_name }}
+        run: |
+          # Attest the architecture-specific SBOMs to their respective digests
+          echo "$SBOMS" | jq -r 'to_entries[] | "\(.value.digest) \(.value.predicate_path)"' | while read -r digest path; do
+            if [ -f "$path" ]; then
+              echo "Attesting SBOM for $digest"
+              cosign attest --yes --type spdxjson --predicate "$path" "$IMAGE@$digest"
+            fi
+          done
+
+      - name: 🛡️ SLSA: Generate and Attest Provenance
+        shell: bash
+        env:
+          SBOMS: ${{ steps.meta.outputs.sboms }}
+          IMAGE: ${{ steps.meta.outputs.image_name }}
+          GH_TOKEN: "${{ github.token }}"
+          # Pinned generator details from your original workflow
+          GEN_VER: v2.1.0
+          GEN_BIN: slsa-generator-container-linux-amd64
+          GEN_SHA: cee1453de115735379dd98dc80f70c73a66fcfefb5674e062f8765a1021e4cc6
+        run: |
+          # Download and verify the SLSA generator
+          gh release download "$GEN_VER" -R slsa-framework/slsa-github-generator -p "$GEN_BIN"
+          echo "$GEN_SHA  $GEN_BIN" | sha256sum --strict --check
+          chmod +x "$GEN_BIN"
+          
+          # Generate the Provenance predicate
+          ./"$GEN_BIN" generate --predicate="provenance.json"
+
+          # Attest the SLSA provenance to every image digest in the tree
+          echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
+            echo "Attesting SLSA for $digest"
+            cosign attest --yes --type slsaprovenance --predicate="provenance.json" "$IMAGE@$digest"
+          done
