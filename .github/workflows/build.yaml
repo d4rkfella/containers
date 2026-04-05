@@ -34,6 +34,13 @@ jobs:
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
           terraform_wrapper: true
+      
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Terraform Apply
         id: tf
@@ -41,7 +48,6 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          GOOGLE_CONTAINER_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           terraform init -backend-config="../common_backend.conf"
           terraform apply -auto-approve
