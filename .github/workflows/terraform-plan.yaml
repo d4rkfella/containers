@@ -3,6 +3,10 @@ name: Terraform Plan
 on:
   schedule:
     - cron: '0 * * * *'
+  push:
+    paths:
+      - '**/*.tf'
+      - '**/apko.yaml'
   workflow_dispatch:
 
 permissions:
@@ -10,31 +14,58 @@ permissions:
   pull-requests: write
 
 jobs:
-  discover-terraform-configs:
+  setup-matrix:
     runs-on: ubuntu-latest
     outputs:
-      folders: ${{ steps.set-matrix.outputs.folders }}
+      folders: ${{ steps.set-matrix.outputs.folders || steps.map-folders.outputs.folders }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - id: set-matrix
+      # CASE 1: Scheduled/Manual - Full Discovery
+      - name: Full Scan Discovery
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        id: set-matrix
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
-            const folders = fs.readdirSync('.').filter(f => fs.statSync(f).isDirectory());
-            const imageFolders = folders.filter(f => fs.existsSync(path.join(f, 'main.tf')));
-            core.setOutput('folders', JSON.stringify(imageFolders));
+            const folders = fs.readdirSync('.', { recursive: true })
+              .filter(f => f.endsWith('main.tf'))
+              .map(f => path.dirname(f));
+            const uniqueFolders = [...new Set(folders)].filter(f => f !== '.');
+            core.setOutput('folders', JSON.stringify(uniqueFolders));
+
+      # CASE 2: Push - Targeted Discovery
+      - name: Get Changed Files
+        if: github.event_name == 'push'
+        id: changed-files
+        uses: bjw-s-labs/action-changed-files@a9a36fb08ce06db9b02fbd8026cc2c0945eb9841 # v0.6.0
+        with:
+          patterns: |
+            **/*.tf
+            **/apko.yaml
+
+      - name: Map Push Files to Folders
+        if: github.event_name == 'push'
+        id: map-folders
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const path = require('path');
+            const files = ${{ steps.changed-files.outputs.changed_files || '[]' }};
+            const folders = [...new Set(files.map(file => path.dirname(file)))].filter(f => f !== '.');
+            core.setOutput('folders', JSON.stringify(folders));
 
   plan:
-    needs: discover-terraform-configs
+    needs: setup-matrix
+    if: needs.setup-matrix.outputs.folders != '[]' && needs.setup-matrix.outputs.folders != ''
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        folder: ${{ fromJSON(needs.discover-terraform-configs.outputs.folders) }}
+        folder: ${{ fromJSON(needs.setup-matrix.outputs.folders) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -74,7 +105,7 @@ jobs:
           commit-message: "Terraform Plan: New changes detected in ${{ matrix.folder }}"
           title: "Terraform Plan: ${{ matrix.folder }}"
           body: |
-            ### Scheduled plan detected changes for `${{ matrix.folder }}` 📖
+            ### Plan detected changes for `${{ matrix.folder }}` 📖
             
             #### Plan Output:
             ```hcl
