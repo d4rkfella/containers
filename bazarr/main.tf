@@ -46,18 +46,17 @@ resource "cosign_sign" "this" {
 
 output "image_ref" {
   value       = apko_build.this.image_ref
-  description = "The fully-qualified digest of the published image."
-}
-
-output "image_tags" {
-  value       = data.apko_tags.this.tags
-  description = "Tags derived from the bazarr package version."
+  description = "The fully-qualified index digest."
 }
 
 output "arch_digests" {
   value = {
     for arch, sbom in apko_build.this.sboms : arch => "${apko_build.this.repo}@${sbom.digest}"
-    if arch != "index"
   }
-  description = "Map of architecture to fully-qualified digest ref, excluding index."
+  description = "Map of architecture to fully-qualified digest ref, including index."
+}
+
+output "image_tags" {
+  value       = data.apko_tags.this.tags
+  description = "Tags derived from the bazarr package version."
 }
