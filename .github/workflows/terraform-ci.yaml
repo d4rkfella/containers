@@ -1,17 +1,19 @@
-name: Terraform Plan
+name: Terraform CI
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '30 * * * *' # Runs at minute 30 of every hour
   push:
+    branches: [main]
     paths:
       - '**/*.tf'
       - '**/apko.yaml'
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  id-token: write
+  packages: write
+  contents: read
 
 jobs:
   setup-matrix:
@@ -22,7 +24,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # CASE 1: Scheduled/Manual - Full Discovery
       - name: Full Scan Discovery
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         id: set-matrix
@@ -37,7 +38,6 @@ jobs:
             const uniqueFolders = [...new Set(folders)].filter(f => f !== '.');
             core.setOutput('folders', JSON.stringify(uniqueFolders));
 
-      # CASE 2: Push - Targeted Discovery
       - name: Get Changed Files
         if: github.event_name == 'push'
         id: changed-files
@@ -58,7 +58,7 @@ jobs:
             const folders = [...new Set(files.map(file => path.dirname(file)))].filter(f => f !== '.');
             core.setOutput('folders', JSON.stringify(folders));
 
-  plan:
+  apply:
     needs: setup-matrix
     if: needs.setup-matrix.outputs.folders != '[]' && needs.setup-matrix.outputs.folders != ''
     runs-on: ubuntu-latest
@@ -73,9 +73,19 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
-          terraform_wrapper: true
+          terraform_wrapper: false
 
-      - name: Terraform Init
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Plan and Apply
         working-directory: ${{ matrix.folder }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -84,43 +94,5 @@ jobs:
           terraform init \
             -backend-config="../common_backend.conf" \
             -backend-config="key=${{ matrix.folder }}/terraform.tfstate"
-
-      - name: Terraform Plan
-        id: tf-plan
-        working-directory: ${{ matrix.folder }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          set +e
-          terraform plan -no-color -detailed-exitcode -out=tfplan > plan_output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          set -e
           
-          echo "Terraform Plan Exit Code: $EXIT_CODE"
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-          
-          echo "PLAN_STDOUT<<EOF" >> $GITHUB_ENV
-          head -c 50000 plan_output.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          
-          cat plan_output.txt
-
-      - name: Create Pull Request
-        if: steps.tf-plan.outputs.exitcode == '2'
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Terraform Plan: New changes detected in ${{ matrix.folder }}"
-          title: "Terraform Plan: ${{ matrix.folder }}"
-          body: |
-            ### Plan detected changes for `${{ matrix.folder }}` 📖
-            
-            #### Plan Output:
-            ```hcl
-            ${{ env.PLAN_STDOUT }}
-            ```
-          branch: "terraform-plan/${{ matrix.folder }}"
-          base: main
-          add-paths: |
-            ${{ matrix.folder }}/tfplan
+          terraform apply -auto-approve
