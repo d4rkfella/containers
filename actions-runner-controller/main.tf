@@ -10,15 +10,12 @@ terraform {
 
 provider "apko" {
   default_archs = ["amd64", "arm64"]
-
   extra_keyring = [
     "https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub"
   ]
-
   build_repositories = [
     "https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main"
   ]
-
   extra_packages = ["wolfi-baselayout"]
 }
 
@@ -34,7 +31,7 @@ data "apko_tags" "this" {
 }
 
 resource "oci_tag" "this" {
-  for_each   = toset(data.apko_tags.this.tags)
+  for_each   = toset(concat(data.apko_tags.this.tags, ["latest"]))
   digest_ref = module.apko.image_ref
   tag        = each.value
 }
