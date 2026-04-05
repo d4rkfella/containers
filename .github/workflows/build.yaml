@@ -67,7 +67,6 @@ jobs:
         shell: bash
         env:
           SBOMS: ${{ steps.meta.outputs.sboms }}
-          IMAGE: ${{ steps.meta.outputs.image_name }}
         run: |
           echo "$SBOMS" | jq -r 'to_entries[].value.digest' | while read -r digest; do
             echo "Signing $digest"
@@ -81,7 +80,6 @@ jobs:
         shell: bash
         env:
           SBOMS: ${{ steps.meta.outputs.sboms }}
-          IMAGE: ${{ steps.meta.outputs.image_name }}
         run: |
           echo "$SBOMS" | jq -r 'to_entries[] | "\(.value.digest) \(.value.predicate_path)"' | while read -r digest path; do
             if [ -f "$path" ]; then
@@ -94,7 +92,6 @@ jobs:
         shell: bash
         env:
           SBOMS: ${{ steps.meta.outputs.sboms }}
-          IMAGE: ${{ steps.meta.outputs.image_name }}
           GH_TOKEN: "${{ github.token }}"
           GEN_VER: v2.1.0
           GEN_BIN: slsa-generator-container-linux-amd64
