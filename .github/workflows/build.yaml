@@ -22,10 +22,18 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - id: set-matrix
-        run: |
-          folders=$(find . -type f -name "main.tf" -exec dirname {} \; | sort -u)
-          folders=$(echo $folders | jq -R -s -c 'split("\n") | map(select(. != ""))')
-          echo "folders=$folders" >> $GITHUB_OUTPUT
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const folders = fs.readdirSync('.').filter(f => fs.statSync(f).isDirectory());
+            const imageFolders = folders.filter(f => fs.existsSync(path.join(f, 'main.tf')));
+            console.log('Discovered image folders:', imageFolders);
+            return JSON.stringify(imageFolders);
+        result-encoding: string
+        outputs:
+          folders: ${{ steps.set-matrix.outputs.result }}
 
   build:
     needs: discover-terraform-configs
