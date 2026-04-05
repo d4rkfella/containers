@@ -51,7 +51,7 @@ output "image_ref" {
 
 output "arch_digests" {
   value = {
-    for arch, sbom in apko_build.this.sboms : arch => "${apko_build.this.repo}@${sbom.digest}"
+    for arch, sbom in apko_build.this.sboms : arch => "${sbom.digest}"
   }
   description = "Map of architecture to fully-qualified digest ref, including index."
 }
