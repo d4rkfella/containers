@@ -1,21 +1,11 @@
 terraform {
   required_providers {
-    apko = { source = "chainguard-dev/apko" }
+    apko   = { source = "chainguard-dev/apko" }
     cosign = { source = "chainguard-dev/cosign" }
   }
   backend "s3" {
     key = "bazarr/terraform.tfstate"
   }
-}
-
-provider "apko" {
-  default_archs      = ["amd64", "arm64"]
-  extra_repositories = ["https://packages.wolfi.dev/os"]
-  extra_keyring      = [
-    "https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub"
-  ]
-  extra_packages     = ["wolfi-baselayout"]
-  build_repositories = ["https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main"]
 }
 
 data "apko_config" "this" {
@@ -27,33 +17,21 @@ data "apko_tags" "this" {
   target_package = "bazarr"
 }
 
-resource "apko_build" "this" {
-  repo    = "ghcr.io/d4rkfella/bazarr"
-  config  = data.apko_config.this.config
-  configs = data.apko_config.this.configs
-  additional_tags = data.apko_tags.this.tags
+module "bazarr_image" {
+  source = "chainguard-dev/apko/publisher"
+
+  target_repository = "ghcr.io/d4rkfella/bazarr"
+  config            = file("${path.module}/apko.yaml")
+  skip_attest       = false
+  check_sbom        = true
 }
 
-resource "cosign_sign" "this" {
-  image    = apko_build.this.image_ref
-}
-
-resource "cosign_attest" "this" {
-  image = cosign_sign.this.signed_ref
-
-  dynamic "predicates" {
-    for_each = apko_build.this.sboms
-    content {
-      type = "https://spdx.dev/Document"
-      file = {
-        path   = predicates.value
-        sha256 = filebase64sha256(predicates.value)
-      }
-    }
-  }
+output "image_tags" {
+  value       = data.apko_tags.this.tags
+  description = "Tags derived from the tracked package version."
 }
 
 output "sboms" {
-  value       = apko_build.this.sboms
+  value       = module.bazarr_image.sboms
   description = "Map of architectures to their digests and SBOM paths."
 }
