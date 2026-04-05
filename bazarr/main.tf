@@ -33,9 +33,10 @@ resource "apko_build" "this" {
   configs = data.apko_config.this.configs
 }
 
-resource "oci_tags" "this" {
-  repo = "ghcr.io/d4rkfella/bazarr"
-  tags = { for tag in data.apko_tags.this.tags : tag => apko_build.this.image_ref }
+resource "oci_tag" "this" {
+  for_each   = toset(data.apko_tags.this.tags)
+  digest_ref = apko_build.this.image_ref
+  tag        = each.value
 }
 
 resource "cosign_sign" "this" {
