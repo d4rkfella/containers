@@ -1,0 +1,37 @@
+annotations:
+  org.opencontainers.image.licenses: GPL-2.0-or-later
+  org.opencontainers.image.description: "A fast, single-binary qBittorrent web UI: manage multiple instances, automate torrent workflows, and cross-seed across trackers."
+  org.opencontainers.image.documentation: https://getqui.com/docs/intro
+  org.opencontainers.image.source: https://github.com/autobrr/qui
+contents:
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  repositories:
+    - https://packages.wolfi.dev/os
+  packages:
+    - wolfi-baselayout
+    - qui
+    - catatonit
+    - tzdata
+work-dir: /config
+volumes: ["/config"]
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+      homedir: ""
+      shell: ""
+  run-as: nonroot:nonroot
+environment:
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  HOME: "/config"
+  XDG_CONFIG_HOME: "/config"
+  XDG_DATA_HOME: "/config"
+entrypoint:
+  command: catatonit -- qui
+cmd: serve
