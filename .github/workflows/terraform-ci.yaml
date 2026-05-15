@@ -1,4 +1,5 @@
 name: Terraform CI
+
 on:
   schedule:
     - cron: '0 */12 * * *'
@@ -8,10 +9,12 @@ on:
       - '**/*.tf'
       - '**/apko.yaml'
   workflow_dispatch:
+
 permissions:
   id-token: write
   packages: write
   contents: read
+
 jobs:
   setup-matrix:
     runs-on: ubuntu-latest
@@ -20,6 +23,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      
       - name: Full Scan Discovery
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         id: set-matrix
@@ -33,6 +37,7 @@ jobs:
               .map(f => path.dirname(f));
             const uniqueFolders = [...new Set(folders)].filter(f => f !== '.');
             core.setOutput('folders', JSON.stringify(uniqueFolders));
+      
       - name: Get Changed Files
         if: github.event_name == 'push'
         id: changed-files
@@ -41,6 +46,7 @@ jobs:
           patterns: |
             **/*.tf
             **/apko.yaml
+      
       - name: Map Push Files to Folders
         if: github.event_name == 'push'
         id: map-folders
@@ -51,6 +57,7 @@ jobs:
             const files = ${{ steps.changed-files.outputs.changed_files || '[]' }};
             const folders = [...new Set(files.map(file => path.dirname(file)))].filter(f => f !== '.');
             core.setOutput('folders', JSON.stringify(folders));
+  
   apply:
     needs: setup-matrix
     if: needs.setup-matrix.outputs.folders != '[]' && needs.setup-matrix.outputs.folders != ''
@@ -62,12 +69,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
         with:
           terraform_wrapper: false
+      
       - name: Setup QEMU
         uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+      
       - name: Login to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
