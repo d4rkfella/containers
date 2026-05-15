@@ -3,9 +3,7 @@ terraform {
     apko = { source = "chainguard-dev/apko" }
     oci = { source = "chainguard-dev/oci"}
   }
-  backend "s3" {
-    key = "${basename(abspath(path.module))}/terraform.tfstate"
-  }
+  backend "s3" {}
 }
 
 provider "apko" {
