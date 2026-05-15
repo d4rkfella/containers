@@ -4,7 +4,7 @@ terraform {
     oci = { source = "chainguard-dev/oci"}
   }
   backend "s3" {
-    key = "vaultwarden/terraform.tfstate"
+    key = "${basename(abspath(path.module))}/terraform.tfstate"
   }
 }
 
