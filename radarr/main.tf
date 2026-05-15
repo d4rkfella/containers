@@ -3,9 +3,7 @@ terraform {
     apko = { source = "chainguard-dev/apko" }
     oci = { source = "chainguard-dev/oci"}
   }
-  backend "s3" {
-    key = "radarr/terraform.tfstate"
-  }
+  backend "s3" {}
 }
 
 provider "apko" {
