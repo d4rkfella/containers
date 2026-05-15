@@ -1,0 +1,35 @@
+annotations:
+  org.opencontainers.image.licenses: Apache-2.0
+  org.opencontainers.image.description: "brrpolice is a Rust service for qBittorrent seeding nodes. It watches peers, identifies peers that stay slow and do not make progress, applies temporary bans, and stores state in SQLite so decisions survive restarts."
+  org.opencontainers.image.source: https://github.com/Zariel/brrpolice
+contents:
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  repositories:
+    - https://packages.wolfi.dev/os
+  packages:
+    - wolfi-baselayout
+    - tzdata
+    - catatonit
+    - brrpolice
+work-dir: /
+volumes: ["/data"]
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+      homedir: ""
+      shell: ""
+  run-as: nonroot:nonroot
+environment:
+  PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"
+  BRRPOLICE_DATABASE__PATH: "/data/brrpolice.sqlite"
+  BRRPOLICE_HTTP__HOST: "0.0.0.0"
+  TZ: "Etc/UTC"
+entrypoint:
+  command: catatonit -- brrpolice
