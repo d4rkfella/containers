@@ -101,14 +101,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          terraform plan -no-color | tee tfplan.txt
           terraform apply -auto-approve -no-color
-
-      - name: Plan Summary
-        if: always()
-        working-directory: ${{ matrix.folder }}
-        run: |
-          echo "## Terraform Plan — \`${{ matrix.folder }}\`" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat tfplan.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
