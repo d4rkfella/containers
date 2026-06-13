@@ -95,10 +95,28 @@ jobs:
             -backend-config="../common_backend.conf" \
             -backend-config="key=${{ matrix.folder }}/terraform.tfstate"
 
-      - name: Terraform Plan & Apply
+      - name: Terraform Plan
+        id: plan
         working-directory: ${{ matrix.folder }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          terraform apply -auto-approve -no-color
+          terraform plan -out=tfplan
+          # Save a human-readable version for the summary
+          terraform show -no-color tfplan > tfplan.txt
+
+      - name: Plan Summary
+        working-directory: ${{ matrix.folder }}
+        run: |
+          echo "## Terraform Plan — \`${{ matrix.folder }}\`" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat tfplan.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Terraform Apply
+        working-directory: ${{ matrix.folder }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: terraform apply tfplan
