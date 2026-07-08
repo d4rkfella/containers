@@ -8,6 +8,7 @@ on:
     paths:
       - '**/*.tf'
       - '**/apko.yaml'
+      - '**/.terraform.lock.hcl'
   workflow_dispatch:
 
 permissions:
@@ -46,6 +47,7 @@ jobs:
           patterns: |
             **/*.tf
             **/apko.yaml
+            **/.terraform.lock.hcl
       
       - name: Map Push Files to Folders
         if: github.event_name == 'push'
@@ -94,6 +96,17 @@ jobs:
           terraform init \
             -backend-config="../common_backend.conf" \
             -backend-config="key=${{ matrix.folder }}/terraform.tfstate"
+
+      - name: Clear stale attestation state
+        if: contains(github.event.head_commit.message, 'lock file') || contains(github.event.head_commit.message, 'lockfile')
+        working-directory: ${{ matrix.folder }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          terraform state rm 'module.apko.cosign_attest.this["amd64"]' || true
+          terraform state rm 'module.apko.cosign_attest.this["arm64"]' || true
+          terraform state rm 'module.apko.cosign_attest.this["index"]' || true
 
       - name: Terraform Plan
         id: plan
