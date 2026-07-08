@@ -103,9 +103,9 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          terraform state rm 'module.apko.cosign_attest.this["amd64"]' || true
-          terraform state rm 'module.apko.cosign_attest.this["arm64"]' || true
-          terraform state rm 'module.apko.cosign_attest.this["index"]' || true
+          for addr in $(terraform state list | grep -E 'apko_build|cosign_sign|cosign_attest|check-sbom-spdx'); do
+            terraform state rm "$addr" || true
+          done
 
       - name: Terraform Plan
         id: plan
