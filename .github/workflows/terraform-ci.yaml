@@ -98,7 +98,6 @@ jobs:
             -backend-config="key=${{ matrix.folder }}/terraform.tfstate"
 
       - name: Clear stale attestation state
-        if: contains(github.event.head_commit.message, 'lock file') || contains(github.event.head_commit.message, 'lockfile')
         working-directory: ${{ matrix.folder }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
