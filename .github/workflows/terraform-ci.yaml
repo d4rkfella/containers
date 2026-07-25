@@ -108,23 +108,6 @@ jobs:
           # Save a human-readable version for the summary
           terraform show -no-color tfplan > tfplan.txt
 
-      - name: Fix stale SBOM state if cosign_attest is being replaced
-        working-directory: ${{ matrix.folder }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: |
-          if grep -q 'cosign_attest.*must be replaced' tfplan.txt; then
-            echo "cosign_attest replacement detected — forcing apko_build/cosign_sign/cosign_attest/check-sbom-spdx to regenerate together"
-            for addr in $(terraform state list | grep -E 'apko_build|cosign_sign|cosign_attest|check-sbom-spdx'); do
-              terraform state rm "$addr" || true
-            done
-            terraform plan -out=tfplan
-            terraform show -no-color tfplan > tfplan.txt
-          else
-            echo "No cosign_attest replacement needed — skipping"
-          fi
-
       - name: Plan Summary
         working-directory: ${{ matrix.folder }}
         run: |
