@@ -29,7 +29,10 @@ data "apko_tags" "this" {
 }
 
 resource "oci_tag" "this" {
-  for_each   = toset(concat(data.apko_tags.this.tags, ["latest"]))
+  for_each = toset(concat(
+    data.apko_tags.this.tags,
+    ["latest"]
+  ))
   digest_ref = module.apko.image_ref
   tag        = each.value
 }

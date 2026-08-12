@@ -24,6 +24,9 @@ module "apko" {
   source  = "chainguard-dev/apko/publisher"
   config = file("${path.module}/apko.yaml")
   target_repository = "ghcr.io/d4rkfella/${basename(abspath(path.module))}"
+  sbom = {
+    enabled = false
+  }
 }
 
 data "apko_tags" "this" {
@@ -32,7 +35,10 @@ data "apko_tags" "this" {
 }
 
 resource "oci_tag" "this" {
-  for_each   = toset(data.apko_tags.this.tags)
+  for_each = toset(concat(
+    data.apko_tags.this.tags,
+    ["latest"]
+  ))
   digest_ref = module.apko.image_ref
   tag        = each.value
 }
