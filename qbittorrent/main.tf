@@ -24,9 +24,6 @@ module "apko" {
   source  = "chainguard-dev/apko/publisher"
   config = file("${path.module}/apko.yaml")
   target_repository = "ghcr.io/d4rkfella/${basename(abspath(path.module))}"
-  sbom = {
-    enabled = false
-  }
 }
 
 data "apko_tags" "this" {
