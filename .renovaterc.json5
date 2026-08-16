@@ -8,6 +8,7 @@
     ':dependencyDashboard',
     ':semanticCommits',
     ':timezone(Europe/Sofia)',
+    'github>d4rkfella/containers//.renovate/customManagers.json5',
   ],
   dependencyDashboardTitle: 'Renovate Dashboard 🤖',
   suppressNotifications: [
