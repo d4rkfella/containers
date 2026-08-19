@@ -107,8 +107,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           terraform plan -out=tfplan
-          # Save a human-readable version for the summary
           terraform show -no-color tfplan > tfplan.txt
+          terraform show -json tfplan > tfplan.json
 
       - name: Plan Summary
         working-directory: ${{ matrix.folder }}
