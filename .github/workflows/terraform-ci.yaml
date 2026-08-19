@@ -118,7 +118,25 @@ jobs:
           cat tfplan.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Check plan scope
+        id: scope
+        working-directory: ${{ matrix.folder }}
+        run: |
+          CHANGED_TYPES=$(jq -r '
+            [.resource_changes[]? | select((.change.actions | index("no-op")) | not) | .type]
+            | unique | join(",")
+          ' tfplan.json)
+
+          echo "changed_types=${CHANGED_TYPES}" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$CHANGED_TYPES" ] || [ "$CHANGED_TYPES" = "cosign_attest" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Terraform Apply
+        if: steps.scope.outputs.skip != 'true'
         working-directory: ${{ matrix.folder }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
