@@ -1,38 +1,32 @@
 name: Scan Container Images
 
 on:
-  workflow_run:
-    workflows: ["Build Docker Images"]
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      apps:
+        description: JSON array of app names to scan (e.g. '["bazarr","radarr"]')
+        type: string
+        required: true
   schedule:
     - cron: "0 3 * * 0"
+
+permissions: {}
 
 jobs:
   prepare_scan_matrix:
     runs-on: ubuntu-24.04
-    if: >-
-      github.event_name == 'schedule' ||
-      (
-        github.event_name == 'workflow_run' &&
-        contains(fromJson('["success", "failure"]'), github.event.workflow_run.conclusion)
-      )
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_call'
+    permissions:
+      contents: read
+      packages: read
     outputs:
       scan_matrix: ${{ steps.build_matrix.outputs.scan_matrix }}
     steps:
-      - name: Download success markers
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: success-marker-*
-          path: ./success-markers
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          merge-multiple: true
-
       - name: Checkout code
         if: github.event_name == 'schedule'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build scan matrix
         id: build_matrix
@@ -41,61 +35,47 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           OWNER: ${{ github.repository_owner }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPS: ${{ inputs.apps || '[]' }}
         with:
           script: |
-            const fs   = require('fs');
             const path = require('path');
 
-            if (process.env.EVENT_NAME === 'workflow_run') {
-              const dir     = './success-markers';
-              const include = [];
+            const EVENT_NAME = process.env.EVENT_NAME;
+            const OWNER      = process.env.OWNER;
+            const semverRe   = /^\d+\.\d+\.\d+(-r\d+)?$/;
 
-              if (fs.existsSync(dir)) {
-                for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
-                  try {
-                    const entry = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
-                    core.info(`Loaded marker: ${JSON.stringify(entry)}`);
-                    include.push(entry);
-                  } catch (e) {
-                    core.warning(`Could not parse ${file}: ${e.message}`);
-                  }
-                }
-              }
+            let appNames;
 
-              const matrix = JSON.stringify(include);
-              core.info(`Scan matrix (workflow_run): ${matrix}`);
-              core.setOutput('scan_matrix', matrix);
-              return;
+            if (EVENT_NAME === 'workflow_call') {
+              appNames = JSON.parse(process.env.APPS || '[]');
+            } else {
+              const fs = require('fs');
+              const { execSync } = require('child_process');
+
+              const apkoDirs = execSync(
+                `find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \\;`,
+                { encoding: 'utf8' }
+              )
+                .trim()
+                .split('\n')
+                .filter(Boolean)
+                .map(d => d.replace(/^\.\//, ''))
+                .sort();
+
+              appNames = apkoDirs.map(d => path.basename(d));
             }
 
-            const { execSync } = require('child_process');
-
-            const apkoDirs = execSync(
-              `find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \\;`,
-              { encoding: 'utf8' }
-            )
-              .trim()
-              .split('\n')
-              .filter(Boolean)
-              .map(d => d.replace(/^\.\//, ''))
-              .sort();
-
-            if (apkoDirs.length === 0) {
-              core.warning('No apko.yaml files found — empty matrix');
+            if (appNames.length === 0) {
+              core.warning('No apps to scan — empty matrix');
               core.setOutput('scan_matrix', '[]');
               return;
             }
 
-            core.info(`Found apps: ${apkoDirs.join(', ')}`);
+            core.info(`Apps to look up: ${appNames.join(', ')}`);
 
-            const OWNER = process.env.OWNER;
-            const semverRe = /^\d+\.\d+\.\d+(-r\d+)?$/;
-            const include  = [];
+            const include = [];
 
-            for (const appDir of apkoDirs) {
-              const appName = path.basename(appDir);
-              const apiUrl  = `https://api.github.com/users/${OWNER}/packages/container/${appName}/versions`;
-
+            for (const appName of appNames) {
               let versions;
               try {
                 versions = await github.paginate(
@@ -141,7 +121,7 @@ jobs:
             }
 
             const matrix = JSON.stringify(include);
-            core.info(`Scan matrix (schedule): ${matrix}`);
+            core.info(`Scan matrix (${EVENT_NAME}): ${matrix}`);
             core.setOutput('scan_matrix', matrix);
 
   grype:
@@ -149,6 +129,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: prepare_scan_matrix
     if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
+    permissions: {}
     steps:
       - name: Compute cache key
         id: cache_key
@@ -169,7 +150,9 @@ jobs:
 
       - name: Update Grype database
         if: steps.db-restore.outputs.cache-hit != 'true'
-        run: ${{ steps.grype.outputs.cmd }} db update
+        env:
+          GRYPE_CMD: ${{ steps.grype.outputs.cmd }}
+        run: $GRYPE_CMD db update
 
       - name: Cache Grype database
         if: steps.db-restore.outputs.cache-hit != 'true'
@@ -291,6 +274,7 @@ jobs:
       - name: Verify Cosign attestation
         env:
           IMAGE_DIGEST: ${{ matrix.app.digest }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
         run: |
           cat > vulnz.cue <<EOF
           predicateType: "https://cosign.sigstore.dev/attestation/vuln/v1"
@@ -300,6 +284,6 @@ jobs:
             --type vuln \
             --policy vulnz.cue \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity   "https://github.com/${{ github.workflow_ref }}" \
+            --certificate-identity   "https://github.com/$WORKFLOW_REF" \
             "$IMAGE_DIGEST" \
           || echo "WARNING: Could not verify attestation (is this a private image?)"
