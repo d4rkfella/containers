@@ -12,8 +12,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
-  packages: write
   contents: read
 
 jobs:
@@ -24,7 +22,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      
+        with:
+          persist-credentials: false
+
       - name: Full Scan Discovery
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         id: set-matrix
@@ -38,7 +38,7 @@ jobs:
               .map(f => path.dirname(f));
             const uniqueFolders = [...new Set(folders)].filter(f => f !== '.');
             core.setOutput('folders', JSON.stringify(uniqueFolders));
-      
+
       - name: Get Changed Files
         if: github.event_name == 'push'
         id: changed-files
@@ -48,22 +48,29 @@ jobs:
             **/*.tf
             **/apko.yaml
             **/.terraform.lock.hcl
-      
+
       - name: Map Push Files to Folders
         if: github.event_name == 'push'
         id: map-folders
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHANGED_FILES: ${{ steps.changed-files.outputs.changed_files || '[]' }}
         with:
           script: |
             const path = require('path');
-            const files = ${{ steps.changed-files.outputs.changed_files || '[]' }};
+            const files = JSON.parse(process.env.CHANGED_FILES);
             const folders = [...new Set(files.map(file => path.dirname(file)))].filter(f => f !== '.');
             core.setOutput('folders', JSON.stringify(folders));
-  
+
   apply:
     needs: setup-matrix
     if: needs.setup-matrix.outputs.folders != '[]' && needs.setup-matrix.outputs.folders != ''
     runs-on: ubuntu-latest
+    environment: automation
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -71,17 +78,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      
+        with:
+          persist-credentials: false
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_wrapper: false
-      
+
       - name: Setup QEMU
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
         with:
           image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
-      
+
       - name: Login to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -94,10 +103,11 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          FOLDER: ${{ matrix.folder }}
         run: |
           terraform init \
             -backend-config="../common_backend.conf" \
-            -backend-config="key=${{ matrix.folder }}/terraform.tfstate"
+            -backend-config="key=$FOLDER/terraform.tfstate"
 
       - name: Terraform Plan
         id: plan
@@ -112,8 +122,10 @@ jobs:
 
       - name: Plan Summary
         working-directory: ${{ matrix.folder }}
+        env:
+          FOLDER: ${{ matrix.folder }}
         run: |
-          echo "## Terraform Plan — \`${{ matrix.folder }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "## Terraform Plan — \`$FOLDER\`" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat tfplan.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
