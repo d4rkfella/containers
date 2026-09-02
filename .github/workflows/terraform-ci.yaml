@@ -154,3 +154,61 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: terraform apply tfplan
+
+      - name: Record changed app
+        if: steps.scope.outputs.skip != 'true'
+        env:
+          FOLDER: ${{ matrix.folder }}
+        run: |
+          mkdir -p success-marker
+          jq -n --arg name "$(basename "$FOLDER")" '{name: $name}' > success-marker/marker.json
+
+      - name: Upload changed-app marker
+        if: steps.scope.outputs.skip != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: changed-app-${{ strategy.job-index }}
+          path: success-marker/marker.json
+          retention-days: 1
+          if-no-files-found: error
+
+  collect-changed-apps:
+    name: Collect changed apps
+    needs: apply
+    if: always() && needs.apply.result != 'cancelled'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      - name: Download changed-app markers
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: changed-app-*
+          path: ./changed-apps
+          merge-multiple: true
+
+      - name: Build app list
+        id: apps
+        run: |
+          if compgen -G "./changed-apps/*.json" > /dev/null; then
+            apps=$(jq -sc '[.[].name] | unique' ./changed-apps/*.json)
+          else
+            apps="[]"
+          fi
+          echo "apps=${apps}" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Scan changed images
+    needs: collect-changed-apps
+    if: needs.collect-changed-apps.outputs.apps != '[]'
+    uses: $/.github/workflows/scan-images.yaml
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      id-token: write
+    with:
+      apps: ${{ needs.collect-changed-apps.outputs.apps }}
