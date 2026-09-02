@@ -204,7 +204,7 @@ jobs:
     name: Scan changed images
     needs: collect-changed-apps
     if: needs.collect-changed-apps.outputs.apps != '[]'
-    uses: $/.github/workflows/scan-images.yaml
+    uses: ./.github/workflows/scan-images.yaml
     permissions:
       contents: read
       packages: write
