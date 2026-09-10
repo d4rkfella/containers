@@ -11,6 +11,7 @@ contents:
   packages:
     - wolfi-baselayout
     - multus-cni
+    - multus-cni-compat
 accounts:
   run-as: root:root
 environment:
