@@ -7,6 +7,15 @@ on:
         description: JSON array of app names to scan (e.g. '["bazarr","radarr"]')
         type: string
         required: true
+
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: Comma-separated apps to scan (leave empty to scan all)
+        required: false
+        default: ""
+        type: string
+
   schedule:
     - cron: "0 3 * * 0"
 
@@ -15,15 +24,21 @@ permissions: {}
 jobs:
   prepare_scan_matrix:
     runs-on: ubuntu-24.04
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_call'
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       packages: read
     outputs:
       scan_matrix: ${{ steps.build_matrix.outputs.scan_matrix }}
+
     steps:
       - name: Checkout code
-        if: github.event_name == 'schedule'
+        if: >
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' && inputs.apps == '')
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -34,22 +49,19 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           OWNER: ${{ github.repository_owner }}
-          APPS: ${{ inputs.apps || '[]' }}
+          CALL_APPS: ${{ inputs.apps || '' }}
+          DISPATCH_APPS: ${{ inputs.apps || '' }}
         with:
           script: |
             const path = require('path');
-            const { execFileSync } = require('child_process');
+            const { execFileSync, execSync } = require('child_process');
 
             const EVENT_NAME = process.env.EVENT_NAME;
             const OWNER = process.env.OWNER;
 
             let appNames;
 
-            if (EVENT_NAME === 'workflow_call') {
-              appNames = JSON.parse(process.env.APPS || '[]');
-            } else {
-              const { execSync } = require('child_process');
-
+            function discoverApps() {
               const apkoDirs = execSync(
                 `find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \\;`,
                 { encoding: 'utf8' }
@@ -60,8 +72,33 @@ jobs:
                 .map(d => d.replace(/^\.\//, ''))
                 .sort();
 
-              appNames = apkoDirs.map(d => path.basename(d));
+              return apkoDirs.map(d => path.basename(d));
             }
+
+            if (EVENT_NAME === 'workflow_call') {
+              // Terraform passes a JSON array.
+              appNames = JSON.parse(process.env.CALL_APPS || '[]');
+
+            } else if (EVENT_NAME === 'workflow_dispatch') {
+              // Manual run:
+              // empty input = scan everything
+              // non-empty input = scan only requested apps
+              const requested = (process.env.DISPATCH_APPS || '')
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+              appNames = requested.length > 0
+                ? requested
+                : discoverApps();
+
+            } else {
+              // Scheduled run = scan everything.
+              appNames = discoverApps();
+            }
+
+            // Remove duplicates and empty values.
+            appNames = [...new Set(appNames.filter(Boolean))];
 
             if (appNames.length === 0) {
               core.warning('No apps to scan — empty matrix');
@@ -89,20 +126,20 @@ jobs:
                   ],
                   { encoding: 'utf8' }
                 ).trim();
-              
+
                 if (!digest.startsWith('sha256:')) {
                   core.warning(`Invalid digest for ${image}: ${digest}`);
                   continue;
                 }
-              
+
                 core.info(`${appName}: latest @ ${digest}`);
-              
+
                 include.push({
                   name: appName,
                   tag: 'latest',
                   digest: `ghcr.io/${OWNER}/${appName}@${digest}`,
                 });
-              
+
               } catch (e) {
                 core.warning(
                   `Could not resolve ${image}: ${e.message} — skipping`
@@ -164,6 +201,7 @@ jobs:
       fail-fast: false
       matrix:
         app: ${{ fromJson(needs.prepare_scan_matrix.outputs.scan_matrix) }}
+
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
