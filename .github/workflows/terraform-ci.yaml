@@ -159,16 +159,22 @@ jobs:
         if: failure() && steps.scope.outputs.skip != 'true'
         run: |
           echo "## SBOM license diagnostic — \`${{ matrix.folder }}\`" >> "$GITHUB_STEP_SUMMARY"
-          shopt -s nullglob
-          files=(/tmp/sbom-*.spdx.json)
+          mkdir -p /tmp/sbom-debug
+
+          mapfile -t files < <(find /tmp -iname '*.spdx.json' -type f 2>/dev/null)
 
           if [ ${#files[@]} -eq 0 ]; then
-            echo "No /tmp/sbom-*.spdx.json files found on this runner." >> "$GITHUB_STEP_SUMMARY"
+            echo "No flat .spdx.json files found. Dumping raw /tmp/sbom-* paths:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            find /tmp -maxdepth 3 -iname 'sbom-*' -exec ls -la {} \; >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+            find /tmp -maxdepth 3 -iname 'sbom-*' -type d -exec sh -c 'echo "--- {} ---"; find "{}" -type f -exec cat {} \;' \; >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
-          mkdir -p /tmp/sbom-debug
-          cp "${files[@]}" /tmp/sbom-debug/
+          for f in "${files[@]}"; do
+            cp "$f" "/tmp/sbom-debug/$(basename "$(dirname "$f")")-$(basename "$f")" 2>/dev/null || true
+          done
 
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           for f in "${files[@]}"; do
