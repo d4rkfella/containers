@@ -155,6 +155,49 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: terraform apply tfplan
 
+      - name: Diagnose SBOM license validation failure
+        if: failure() && steps.scope.outputs.skip != 'true'
+        run: |
+          echo "## SBOM license diagnostic — \`${{ matrix.folder }}\`" >> "$GITHUB_STEP_SUMMARY"
+          shopt -s nullglob
+          files=(/tmp/sbom-*.spdx.json)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No /tmp/sbom-*.spdx.json files found on this runner." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          mkdir -p /tmp/sbom-debug
+          cp "${files[@]}" /tmp/sbom-debug/
+
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          for f in "${files[@]}"; do
+            bad=$(jq -r '.hasExtractedLicensingInfos[]?.licenseId' "$f" \
+                  | grep -vE '^LicenseRef-[0-9a-zA-Z.+-]+$' || true)
+
+            if [ -n "$bad" ]; then
+              echo "File: $f" >> "$GITHUB_STEP_SUMMARY"
+              while IFS= read -r id; do
+                echo "  bad licenseId: $id" >> "$GITHUB_STEP_SUMMARY"
+                jq -r --arg id "$id" '
+                  .packages[]
+                  | select((.licenseDeclared // "") == $id or (.licenseConcluded // "" | contains($id)))
+                  | "    package: \(.name)  version: \(.versionInfo // "?")"
+                ' "$f" >> "$GITHUB_STEP_SUMMARY"
+              done <<< "$bad"
+            fi
+          done
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SBOM debug artifacts
+        if: failure() && steps.scope.outputs.skip != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-debug-${{ strategy.job-index }}
+          path: /tmp/sbom-debug/
+          retention-days: 3
+          if-no-files-found: warn
+
       - name: Record changed app
         if: steps.scope.outputs.skip != 'true'
         env:
