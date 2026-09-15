@@ -30,26 +30,24 @@ jobs:
 
       - name: Build scan matrix
         id: build_matrix
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b # v9.0.0
         env:
           EVENT_NAME: ${{ github.event_name }}
           OWNER: ${{ github.repository_owner }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPS: ${{ inputs.apps || '[]' }}
         with:
           script: |
             const path = require('path');
+            const { execFileSync } = require('child_process');
 
             const EVENT_NAME = process.env.EVENT_NAME;
-            const OWNER      = process.env.OWNER;
-            const semverRe   = /^\d+\.\d+\.\d+(-r\d+)?$/;
+            const OWNER = process.env.OWNER;
 
             let appNames;
 
             if (EVENT_NAME === 'workflow_call') {
               appNames = JSON.parse(process.env.APPS || '[]');
             } else {
-              const fs = require('fs');
               const { execSync } = require('child_process');
 
               const apkoDirs = execSync(
@@ -71,56 +69,49 @@ jobs:
               return;
             }
 
-            core.info(`Apps to look up: ${appNames.join(', ')}`);
+            core.info(`Apps to scan: ${appNames.join(', ')}`);
 
             const include = [];
 
             for (const appName of appNames) {
-              let versions;
+              const image = `ghcr.io/${OWNER}/${appName}:latest`;
+
               try {
-                versions = await github.paginate(
-                  'GET /users/{owner}/packages/{package_type}/{package_name}/versions',
-                  { owner: OWNER, package_type: 'container', package_name: appName }
-                );
+                const digest = execFileSync(
+                  'docker',
+                  [
+                    'buildx',
+                    'imagetools',
+                    'inspect',
+                    image,
+                    '--format',
+                    '{{.Manifest.Digest}}'
+                  ],
+                  { encoding: 'utf8' }
+                ).trim();
+              
+                if (!digest.startsWith('sha256:')) {
+                  core.warning(`Invalid digest for ${image}: ${digest}`);
+                  continue;
+                }
+              
+                core.info(`${appName}: latest @ ${digest}`);
+              
+                include.push({
+                  name: appName,
+                  tag: 'latest',
+                  digest: `ghcr.io/${OWNER}/${appName}@${digest}`,
+                });
+              
               } catch (e) {
-                if (e.status === 404) {
-                  core.warning(`Package '${appName}' not found in GHCR — skipping`);
-                } else {
-                  core.warning(`GHCR API error for '${appName}': ${e.message} — skipping`);
-                }
-                continue;
+                core.warning(
+                  `Could not resolve ${image}: ${e.message} — skipping`
+                );
               }
-
-              const sorted = versions
-                .filter(v => v.metadata?.container?.tags?.length)
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-              let latestTag    = null;
-              let imageDigest  = null;
-
-              for (const v of sorted) {
-                const tag = v.metadata.container.tags.find(t => semverRe.test(t));
-                if (tag && v.name?.startsWith('sha256:')) {
-                  latestTag   = tag;
-                  imageDigest = v.name;
-                  break;
-                }
-              }
-
-              if (!latestTag || !imageDigest) {
-                core.warning(`No valid semver tag + digest found for '${appName}' — skipping`);
-                continue;
-              }
-
-              core.info(`${appName}: ${latestTag} @ ${imageDigest}`);
-              include.push({
-                name:   appName,
-                tag:    latestTag,
-                digest: `ghcr.io/${OWNER}/${appName}@${imageDigest}`,
-              });
             }
 
             const matrix = JSON.stringify(include);
+
             core.info(`Scan matrix (${EVENT_NAME}): ${matrix}`);
             core.setOutput('scan_matrix', matrix);
 
