@@ -23,7 +23,7 @@ permissions: {}
 
 jobs:
   prepare_scan_matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: >
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_call' ||
@@ -154,7 +154,7 @@ jobs:
 
   grype:
     name: Setup Grype
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: prepare_scan_matrix
     if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
     permissions: {}
@@ -192,7 +192,7 @@ jobs:
   vulnerability-scan:
     needs: [prepare_scan_matrix, grype]
     if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       packages: write
       security-events: write
