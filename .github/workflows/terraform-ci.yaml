@@ -155,55 +155,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: terraform apply tfplan
 
-      - name: Diagnose SBOM license validation failure
-        if: failure() && steps.scope.outputs.skip != 'true'
-        run: |
-          echo "## SBOM license diagnostic — \`${{ matrix.folder }}\`" >> "$GITHUB_STEP_SUMMARY"
-          mkdir -p /tmp/sbom-debug
-
-          mapfile -t files < <(find /tmp -iname '*.spdx.json' -type f 2>/dev/null)
-
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No flat .spdx.json files found. Dumping raw /tmp/sbom-* paths:" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            find /tmp -maxdepth 3 -iname 'sbom-*' -exec ls -la {} \; >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
-            find /tmp -maxdepth 3 -iname 'sbom-*' -type d -exec sh -c 'echo "--- {} ---"; find "{}" -type f -exec cat {} \;' \; >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          for f in "${files[@]}"; do
-            cp "$f" "/tmp/sbom-debug/$(basename "$(dirname "$f")")-$(basename "$f")" 2>/dev/null || true
-          done
-
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          for f in "${files[@]}"; do
-            bad=$(jq -r '.hasExtractedLicensingInfos[]?.licenseId' "$f" \
-                  | grep -vE '^LicenseRef-[0-9a-zA-Z.+-]+$' || true)
-
-            if [ -n "$bad" ]; then
-              echo "File: $f" >> "$GITHUB_STEP_SUMMARY"
-              while IFS= read -r id; do
-                echo "  bad licenseId: $id" >> "$GITHUB_STEP_SUMMARY"
-                jq -r --arg id "$id" '
-                  .packages[]
-                  | select((.licenseDeclared // "") == $id or (.licenseConcluded // "" | contains($id)))
-                  | "    package: \(.name)  version: \(.versionInfo // "?")"
-                ' "$f" >> "$GITHUB_STEP_SUMMARY"
-              done <<< "$bad"
-            fi
-          done
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload SBOM debug artifacts
-        if: failure() && steps.scope.outputs.skip != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sbom-debug-${{ strategy.job-index }}
-          path: /tmp/sbom-debug/
-          retention-days: 3
-          if-no-files-found: warn
-
       - name: Record changed app
         if: steps.scope.outputs.skip != 'true'
         env:
