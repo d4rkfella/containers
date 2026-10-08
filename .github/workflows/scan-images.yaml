@@ -121,8 +121,7 @@ jobs:
     runs-on: ubuntu-26.04
 
     permissions:
-      contents: read
-      packages: read
+      packages: write
       security-events: write
       id-token: write
 
