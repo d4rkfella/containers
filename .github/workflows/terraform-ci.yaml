@@ -197,24 +197,23 @@ jobs:
       - name: Record Image Reference
         if: steps.scope.outputs.skip != 'true'
         working-directory: ${{ matrix.folder }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          set -euo pipefail
-
-          mkdir -p image_ref
-
-          terraform output -json image_ref > image_ref/marker.json
+          terraform output -json image_ref > "image_ref-${{ strategy.job-index }}.json"
 
       - name: Upload Image Reference
         if: steps.scope.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: image-ref-${{ strategy.job-index }}
-          path: ${{ matrix.folder }}/image_ref/marker.json
+          path: ${{ matrix.folder }}/image_ref-${{ strategy.job-index }}.json
           retention-days: 1
           if-no-files-found: error
 
   collect-image-refs:
-    name: Collect image refs
+    name: Collect Image References
     needs: build
     if: always() && needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
@@ -223,7 +222,7 @@ jobs:
       actions: read
 
     outputs:
-      image_refs: ${{ steps.image-refs.outputs.image_refs }}
+      image_refs: ${{ steps.images.outputs.image_refs }}
 
     steps:
       - name: Download Image References
@@ -235,25 +234,17 @@ jobs:
           merge-multiple: true
 
       - name: Collect Image References
-        id: image-refs
-        shell: bash
+        id: images
         run: |
           set -euo pipefail
 
           if compgen -G "./image-refs/*.json" > /dev/null; then
-            image_refs="$(jq -sc '.' ./image-refs/*.json)"
+            image_refs=$(jq -sc '.' ./image-refs/*.json)
           else
-            image_refs='[]'
+            image_refs="[]"
           fi
 
-          echo "Image refs:"
-          jq . <<<"$image_refs"
-
-          {
-            echo 'image_refs<<EOF'
-            echo "$image_refs"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
+          echo "image_refs=$image_refs" >> "$GITHUB_OUTPUT"
 
   scan-images:
     name: Scan Built Images
