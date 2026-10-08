@@ -253,8 +253,7 @@ jobs:
     uses: ./.github/workflows/scan-images.yaml
 
     permissions:
-      contents: read
-      packages: read
+      packages: write
       security-events: write
       id-token: write
     with:
