@@ -5,7 +5,8 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"hashicorp.terraform"
+				"hashicorp.terraform",
+				"redhat.vscode-yaml"
 			]
 		}
 	}

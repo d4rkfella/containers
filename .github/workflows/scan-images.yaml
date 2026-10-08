@@ -3,165 +3,85 @@ name: Scan Container Images
 on:
   workflow_call:
     inputs:
-      apps:
-        description: JSON array of app names to scan (e.g. '["bazarr","radarr"]')
+      image_refs:
+        description: >-
+          JSON array containing immutable container image refs to scan,
+          e.g. ["ghcr.io/org/app@sha256:<64-hex-digest>"]
         type: string
         required: true
-
-  workflow_dispatch:
-    inputs:
-      apps:
-        description: Comma-separated apps to scan (leave empty to scan all)
-        required: false
-        default: ""
-        type: string
-
-  schedule:
-    - cron: "0 3 * * 0"
 
 permissions: {}
 
 jobs:
   prepare_scan_matrix:
+    name: Validate scan inputs
     runs-on: ubuntu-26.04
-    if: >
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_call' ||
-      github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: read
-      packages: read
+    permissions: {}
     outputs:
       scan_matrix: ${{ steps.build_matrix.outputs.scan_matrix }}
 
     steps:
-      - name: Checkout code
-        if: >
-          github.event_name == 'schedule' ||
-          (github.event_name == 'workflow_dispatch' && inputs.apps == '')
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Build scan matrix
+      - name: Validate and build scan matrix
         id: build_matrix
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          OWNER: ${{ github.repository_owner }}
-          CALL_APPS: ${{ inputs.apps || '' }}
-          DISPATCH_APPS: ${{ inputs.apps || '' }}
+          IMAGES: ${{ inputs.image_refs }}
         with:
           script: |
-            const path = require('path');
-            const { execFileSync, execSync } = require('child_process');
+            let images;
 
-            const EVENT_NAME = process.env.EVENT_NAME;
-            const OWNER = process.env.OWNER;
-
-            let appNames;
-
-            function discoverApps() {
-              const apkoDirs = execSync(
-                `find . -type f -name 'apko.yaml' ! -path '*/.*/*' -exec dirname {} \\;`,
-                { encoding: 'utf8' }
-              )
-                .trim()
-                .split('\n')
-                .filter(Boolean)
-                .map(d => d.replace(/^\.\//, ''))
-                .sort();
-
-              return apkoDirs.map(d => path.basename(d));
-            }
-
-            if (EVENT_NAME === 'workflow_call') {
-              // Terraform passes a JSON array.
-              appNames = JSON.parse(process.env.CALL_APPS || '[]');
-
-            } else if (EVENT_NAME === 'workflow_dispatch') {
-              // Manual run:
-              // empty input = scan everything
-              // non-empty input = scan only requested apps
-              const requested = (process.env.DISPATCH_APPS || '')
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean);
-
-              appNames = requested.length > 0
-                ? requested
-                : discoverApps();
-
-            } else {
-              // Scheduled run = scan everything.
-              appNames = discoverApps();
-            }
-
-            // Remove duplicates and empty values.
-            appNames = [...new Set(appNames.filter(Boolean))];
-
-            if (appNames.length === 0) {
-              core.warning('No apps to scan — empty matrix');
-              core.setOutput('scan_matrix', '[]');
+            try {
+              images = JSON.parse(process.env.IMAGES);
+            } catch (error) {
+              core.setFailed(`image_refs is not valid JSON: ${error.message}`);
               return;
             }
 
-            core.info(`Apps to scan: ${appNames.join(', ')}`);
+            if (!Array.isArray(images)) {
+              core.setFailed('image_refs must be a JSON array');
+              return;
+            }
 
-            const include = [];
+            if (images.length === 0) {
+              core.setFailed('image_refs must not be empty');
+              return;
+            }
 
-            for (const appName of appNames) {
-              const image = `ghcr.io/${OWNER}/${appName}:latest`;
+            const digestRef =
+              /^[a-z0-9](?:[a-z0-9._/-]*[a-z0-9])?@sha256:[a-f0-9]{64}$/;
 
-              try {
-                const digest = execFileSync(
-                  'docker',
-                  [
-                    'buildx',
-                    'imagetools',
-                    'inspect',
-                    image,
-                    '--format',
-                    '{{.Manifest.Digest}}'
-                  ],
-                  { encoding: 'utf8' }
-                ).trim();
-
-                if (!digest.startsWith('sha256:')) {
-                  core.warning(`Invalid digest for ${image}: ${digest}`);
-                  continue;
-                }
-
-                core.info(`${appName}: latest @ ${digest}`);
-
-                include.push({
-                  name: appName,
-                  tag: 'latest',
-                  digest: `ghcr.io/${OWNER}/${appName}@${digest}`,
-                });
-
-              } catch (e) {
-                core.warning(
-                  `Could not resolve ${image}: ${e.message} — skipping`
+            for (const image of images) {
+              if (typeof image !== 'string' || !digestRef.test(image)) {
+                core.setFailed(
+                  `Invalid image reference: ${JSON.stringify(image)}`
                 );
+                return;
               }
             }
 
-            const matrix = JSON.stringify(include);
+            const uniqueImages = [...new Set(images)];
 
-            core.info(`Scan matrix (${EVENT_NAME}): ${matrix}`);
-            core.setOutput('scan_matrix', matrix);
+            core.info(`Validated ${uniqueImages.length} unique image(s).`);
+
+            core.setOutput(
+              'scan_matrix',
+              JSON.stringify(uniqueImages)
+            );
 
   grype:
-    name: Setup Grype
+    name: Setup Grype database
     runs-on: ubuntu-26.04
     needs: prepare_scan_matrix
     if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
     permissions: {}
+
     steps:
       - name: Compute cache key
         id: cache_key
-        run: echo "key=grype-db-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "key=grype-db-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
       - name: Restore Grype database
         id: db-restore
@@ -180,7 +100,10 @@ jobs:
         if: steps.db-restore.outputs.cache-hit != 'true'
         env:
           GRYPE_CMD: ${{ steps.grype.outputs.cmd }}
-        run: $GRYPE_CMD db update
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GRYPE_CMD" db update
 
       - name: Cache Grype database
         if: steps.db-restore.outputs.cache-hit != 'true'
@@ -190,27 +113,36 @@ jobs:
           path: ~/.cache/grype/db
 
   vulnerability-scan:
-    needs: [prepare_scan_matrix, grype]
+    name: Scan ${{ matrix.image }}
+    needs:
+      - prepare_scan_matrix
+      - grype
     if: needs.prepare_scan_matrix.outputs.scan_matrix != '[]'
     runs-on: ubuntu-26.04
+
     permissions:
-      packages: write
+      contents: read
+      packages: read
       security-events: write
       id-token: write
+
     strategy:
       fail-fast: false
       matrix:
-        app: ${{ fromJson(needs.prepare_scan_matrix.outputs.scan_matrix) }}
+        image: ${{ fromJson(needs.prepare_scan_matrix.outputs.scan_matrix) }}
 
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the runner (audit outbound calls)
         uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           egress-policy: audit
 
-      - name: Retrieve cache key
+      - name: Compute cache key
         id: cache_key
-        run: echo "key=grype-db-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "key=grype-db-$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
       - name: Restore Grype database
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -230,15 +162,18 @@ jobs:
 
       - name: Record scan start time
         id: scan-start
-        run: echo "date=$(TZ=Zulu date '+%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "date=$(TZ=Zulu date '+%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
       - name: Scan image with Grype
         id: grype-scan
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
-          image: ${{ matrix.app.digest }}
+          image: ${{ matrix.image }}
           output-format: sarif
-          output-file: grype-results-${{ matrix.app.name }}-${{ matrix.app.tag }}.sarif
+          output-file: grype-results.sarif
           fail-build: false
           severity-cutoff: low
 
@@ -246,15 +181,28 @@ jobs:
         env:
           SARIF_FILE: ${{ steps.grype-scan.outputs.sarif }}
           SCAN_STARTED: ${{ steps.scan-start.outputs.date }}
-          IMAGE_DIGEST: ${{ matrix.app.digest }}
+          IMAGE_REF: ${{ matrix.image }}
           RUN_URI: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_ID: ${{ github.run_id }}
           WORKFLOW: ${{ github.workflow }}
+        shell: bash
         run: |
-          ATTESTATION=$(mktemp)
+          set -euo pipefail
 
-          SCANNER_URI=$(jq -r '.runs[0].tool.driver.informationUri' "$SARIF_FILE")
-          SCANNER_VERSION=$(jq -r '.runs[0].tool.driver.version' "$SARIF_FILE")
+          ATTESTATION="$(mktemp)"
+
+          SCANNER_URI="$(jq -r '.runs[0].tool.driver.informationUri' "$SARIF_FILE")"
+          SCANNER_VERSION="$(jq -r '.runs[0].tool.driver.version' "$SARIF_FILE")"
+
+          if [[ -z "$SCANNER_URI" || "$SCANNER_URI" == "null" ]]; then
+            echo "::error::Could not determine Grype scanner URI from SARIF"
+            exit 1
+          fi
+
+          if [[ -z "$SCANNER_VERSION" || "$SCANNER_VERSION" == "null" ]]; then
+            echo "::error::Could not determine Grype scanner version from SARIF"
+            exit 1
+          fi
 
           echo "Grype URI:     $SCANNER_URI"
           echo "Grype version: $SCANNER_VERSION"
@@ -288,24 +236,27 @@ jobs:
 
           cosign attest --yes \
             --fulcio-url "https://fulcio.sigstore.dev" \
-            --rekor-url  "https://rekor.sigstore.dev" \
+            --rekor-url "https://rekor.sigstore.dev" \
             --type vuln \
-            --predicate  "$ATTESTATION" \
-            "$IMAGE_DIGEST"
+            --predicate "$ATTESTATION" \
+            "$IMAGE_REF"
 
       - name: Upload Grype SARIF to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
-          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
-          category: container:${{ matrix.app.name }}
+          sarif_file: grype-results.sarif
+          category: container
 
       - name: Verify Cosign attestation
         env:
-          IMAGE_DIGEST: ${{ matrix.app.digest }}
+          IMAGE_REF: ${{ matrix.image }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
+        shell: bash
         run: |
-          cat > vulnz.cue <<EOF
+          set -euo pipefail
+
+          cat > vulnz.cue <<'EOF'
           predicateType: "https://cosign.sigstore.dev/attestation/vuln/v1"
           EOF
 
@@ -313,6 +264,5 @@ jobs:
             --type vuln \
             --policy vulnz.cue \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-            --certificate-identity   "https://github.com/$WORKFLOW_REF" \
-            "$IMAGE_DIGEST" \
-          || echo "WARNING: Could not verify attestation (is this a private image?)"
+            --certificate-identity "https://github.com/$WORKFLOW_REF" \
+            "$IMAGE_REF"

@@ -40,3 +40,6 @@ resource "oci_tag" "this" {
   tag        = each.value
 }
 
+output "image_ref" {
+  value = module.apko.image_ref
+}

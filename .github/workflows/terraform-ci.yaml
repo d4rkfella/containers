@@ -15,17 +15,18 @@ permissions:
   contents: read
 
 jobs:
-  setup-matrix:
+  discover-targets:
     runs-on: ubuntu-latest
     outputs:
       folders: ${{ steps.set-matrix.outputs.folders || steps.map-folders.outputs.folders }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Full Scan Discovery
+      - name: Discover All Targets
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         id: set-matrix
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -33,13 +34,21 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
+
             const folders = fs.readdirSync('.', { recursive: true })
               .filter(f => f.endsWith('main.tf'))
               .map(f => path.dirname(f));
-            const uniqueFolders = [...new Set(folders)].filter(f => f !== '.');
-            core.setOutput('folders', JSON.stringify(uniqueFolders));
 
-      - name: Get Changed Files
+            const uniqueFolders = [
+              ...new Set(folders)
+            ].filter(f => f !== '.');
+
+            core.setOutput(
+              'folders',
+              JSON.stringify(uniqueFolders)
+            );
+
+      - name: Detect Changed Files
         if: github.event_name == 'push'
         id: changed-files
         uses: bjw-s-labs/action-changed-files@147be9638332cf68fd60714a610509d7a9360d60 # v0.7.0
@@ -49,7 +58,7 @@ jobs:
             **/apko.yaml
             **/.terraform.lock.hcl
 
-      - name: Map Push Files to Folders
+      - name: Map Push Files to Parent Folders
         if: github.event_name == 'push'
         id: map-folders
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -59,22 +68,34 @@ jobs:
           script: |
             const path = require('path');
             const files = JSON.parse(process.env.CHANGED_FILES);
-            const folders = [...new Set(files.map(file => path.dirname(file)))].filter(f => f !== '.');
-            core.setOutput('folders', JSON.stringify(folders));
 
-  apply:
-    needs: setup-matrix
-    if: needs.setup-matrix.outputs.folders != '[]' && needs.setup-matrix.outputs.folders != ''
+            const folders = [
+              ...new Set(
+                files.map(file => path.dirname(file))
+              )
+            ].filter(f => f !== '.');
+
+            core.setOutput(
+              'folders',
+              JSON.stringify(folders)
+            );
+
+  build:
+    needs: discover-targets
+    if: needs.discover-targets.outputs.folders != '[]' && needs.discover-targets.outputs.folders != ''
     runs-on: ubuntu-latest
     environment: automation
+
     permissions:
       contents: read
       packages: write
       id-token: write
+
     strategy:
       fail-fast: false
       matrix:
-        folder: ${{ fromJSON(needs.setup-matrix.outputs.folders) }}
+        folder: ${{ fromJSON(needs.discover-targets.outputs.folders) }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -105,17 +126,20 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           FOLDER: ${{ matrix.folder }}
         run: |
+          set -euo pipefail
+
           terraform init \
             -backend-config="../common_backend.conf" \
             -backend-config="key=$FOLDER/terraform.tfstate"
 
       - name: Terraform Plan
-        id: plan
         working-directory: ${{ matrix.folder }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
+          set -euo pipefail
+
           terraform plan -out=tfplan
           terraform show -no-color tfplan > tfplan.txt
           terraform show -json tfplan > tfplan.json
@@ -125,21 +149,34 @@ jobs:
         env:
           FOLDER: ${{ matrix.folder }}
         run: |
-          echo "## Terraform Plan — \`$FOLDER\`" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat tfplan.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+
+          {
+            echo "## Terraform Plan — \`$FOLDER\`"
+            echo '```'
+            cat tfplan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check plan scope
         id: scope
         working-directory: ${{ matrix.folder }}
         run: |
-          CHANGED_TYPES=$(jq -r '
-            [.resource_changes[]? | select((.change.actions | index("no-op")) | not) | .type]
-            | unique | join(",")
-          ' tfplan.json)
+          set -euo pipefail
 
-          echo "changed_types=${CHANGED_TYPES}" >> "$GITHUB_OUTPUT"
+          CHANGED_TYPES="$(
+            jq -r '
+              [
+                .resource_changes[]?
+                | select((.change.actions | index("no-op")) | not)
+                | .type
+              ]
+              | unique
+              | join(",")
+            ' tfplan.json
+          )"
+
+          echo "changed_types=$CHANGED_TYPES" >> "$GITHUB_OUTPUT"
 
           if [ -z "$CHANGED_TYPES" ] || [ "$CHANGED_TYPES" = "cosign_attest" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -153,62 +190,81 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        run: terraform apply tfplan
-
-      - name: Record changed app
-        if: steps.scope.outputs.skip != 'true'
-        env:
-          FOLDER: ${{ matrix.folder }}
         run: |
-          mkdir -p success-marker
-          jq -n --arg name "$(basename "$FOLDER")" '{name: $name}' > success-marker/marker.json
+          set -euo pipefail
+          terraform apply tfplan
 
-      - name: Upload changed-app marker
+      - name: Record Image Reference
+        if: steps.scope.outputs.skip != 'true'
+        working-directory: ${{ matrix.folder }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p image_ref
+
+          terraform output -json image_ref > image_ref/marker.json
+
+      - name: Upload Image Reference
         if: steps.scope.outputs.skip != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: changed-app-${{ strategy.job-index }}
-          path: success-marker/marker.json
+          name: image-ref-${{ strategy.job-index }}
+          path: ${{ matrix.folder }}/image_ref/marker.json
           retention-days: 1
           if-no-files-found: error
 
-  collect-changed-apps:
-    name: Collect changed apps
-    needs: apply
-    if: always() && needs.apply.result != 'cancelled'
+  collect-image-refs:
+    name: Collect image refs
+    needs: build
+    if: always() && needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
+
     permissions:
       actions: read
+
     outputs:
-      apps: ${{ steps.apps.outputs.apps }}
+      image_refs: ${{ steps.image-refs.outputs.image_refs }}
+
     steps:
-      - name: Download changed-app markers
+      - name: Download Image References
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         continue-on-error: true
         with:
-          pattern: changed-app-*
-          path: ./changed-apps
+          pattern: image-ref-*
+          path: ./image-refs
           merge-multiple: true
 
-      - name: Build app list
-        id: apps
+      - name: Collect Image References
+        id: image-refs
+        shell: bash
         run: |
-          if compgen -G "./changed-apps/*.json" > /dev/null; then
-            apps=$(jq -sc '[.[].name] | unique' ./changed-apps/*.json)
-          else
-            apps="[]"
-          fi
-          echo "apps=${apps}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
 
-  scan:
-    name: Scan changed images
-    needs: collect-changed-apps
-    if: needs.collect-changed-apps.outputs.apps != '[]'
+          if compgen -G "./image-refs/*.json" > /dev/null; then
+            image_refs="$(jq -sc '.' ./image-refs/*.json)"
+          else
+            image_refs='[]'
+          fi
+
+          echo "Image refs:"
+          jq . <<<"$image_refs"
+
+          {
+            echo 'image_refs<<EOF'
+            echo "$image_refs"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  scan-images:
+    name: Scan Built Images
+    needs: collect-image-refs
+    if: needs.collect-image-refs.outputs.image_refs != '[]'
     uses: ./.github/workflows/scan-images.yaml
+
     permissions:
       contents: read
-      packages: write
+      packages: read
       security-events: write
       id-token: write
     with:
-      apps: ${{ needs.collect-changed-apps.outputs.apps }}
+      image_refs: ${{ needs.collect-image-refs.outputs.image_refs }}

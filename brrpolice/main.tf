@@ -39,3 +39,8 @@ resource "oci_tag" "this" {
   digest_ref = module.apko.image_ref
   tag        = each.value
 }
+
+output "image_ref" {
+  value = module.apko.image_ref
+}
+
