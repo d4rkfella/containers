@@ -11,6 +11,10 @@ on:
       - '**/.terraform.lock.hcl'
   workflow_dispatch:
 
+concurrency:
+  group: terraform-ci
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
