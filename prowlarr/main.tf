@@ -12,11 +12,11 @@ provider "apko" {
   plan_offline = false
 
   extra_keyring = [
-    "https://packages.darkfellanetwork.com/artifactory/wolfi-os/melange.rsa.pub"
+    "https://packages.darkfella.space/artifactory/wolfi-os/melange.rsa.pub"
   ]
 
   build_repositories = [
-    "https://packages.darkfellanetwork.com/artifactory/wolfi-os/latest/main"
+    "https://packages.darkfella.space/artifactory/wolfi-os/latest/main"
   ]
 
   extra_packages = ["wolfi-baselayout"]
