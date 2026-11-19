@@ -10,11 +10,11 @@ provider "apko" {
   default_archs = ["amd64", "arm64"]
 
   extra_keyring = [
-    "https://packages.darkfella.space/artifactory/wolfi-os/melange.rsa.pub"
+    "https://packages.darkfella.space/wolfi-os/index-signing-key.rsa.pub"
   ]
 
   build_repositories = [
-    "https://packages.darkfella.space/artifactory/wolfi-os/latest/main"
+    "https://packages.darkfella.space/wolfi-os"
   ]
 
   extra_packages = ["wolfi-baselayout"]
